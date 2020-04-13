@@ -128,10 +128,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# a data to ignore
+# the files to be ignored
 /data/raw/
 /data/encode/
 /resources/embedding/
 /resources/models/
 /resources/skipgrams/
 /logs/
+/*.sh

@@ -130,3 +130,7 @@ dmypy.json
 
 # a data to ignore
 /data/raw/
+/resources/embedding/
+/resources/models/
+/resources/skipgrams/
+/logs/

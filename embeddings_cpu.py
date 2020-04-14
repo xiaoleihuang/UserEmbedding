@@ -14,6 +14,8 @@ from gensim.models.word2vec import Word2Vec
 from gensim.corpora import Dictionary
 from gensim.models import LdaModel
 from gensim.models.ldamulticore import LdaMulticore
+from gensim.models.wrappers import LdaMallet
+from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
 
 import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
@@ -82,14 +84,22 @@ def train_lda(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
 
     doc_matrix = RawCorpus(dpath, True, dictionary)
 
-#    model = LdaModel(
-#        doc_matrix, id2word=dictionary, num_topics=300,
-#        passes=5, alpha='symmetric'
-#    )
-    model = LdaMulticore(
-        doc_matrix, id2word=dictionary, num_topics=300,
-        passes=5, alpha='symmetric', workers=4
-    )
+    if dname == 'amazon':
+#        path_to_mallet_binary = "/export/b10/xhuang/xiaolei_data/UserEmbedding/baselines/Mallet/bin/mallet"
+#        model = LdaMallet(
+#            path_to_mallet_binary, corpus=doc_matrix, 
+#            num_topics=300, id2word=dictionary
+#        )
+#        model = malletmodel2ldamodel(model)
+        model = LdaModel(
+            doc_matrix, id2word=dictionary, num_topics=300,
+            passes=5, alpha='symmetric'
+        )
+    else:
+        model = LdaMulticore(
+            doc_matrix, id2word=dictionary, num_topics=300,
+            passes=5, alpha='symmetric', workers=4
+        )
     model.save(odir + 'lda.model')
 
 

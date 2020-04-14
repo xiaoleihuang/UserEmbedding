@@ -7,6 +7,7 @@
 import os
 import pickle
 import json
+import sys
 from collections import Counter
 
 from gensim.models.doc2vec import TaggedDocument, Doc2Vec
@@ -101,10 +102,6 @@ class FineTuneBert:
         self.raw_dir= raw_dir
         self.odir = odir
 
-        self.odir = self.odir + self.dname
-        if not os.path.exists(self.odir):
-            os.mkdir(self.odir)
-        self.odir = self.odir + '/bert/'
         if not os.path.exists(self.odir):
             os.mkdir(self.odir)
 
@@ -159,19 +156,20 @@ class FineTuneBert:
             print('Tuning BERT via device: CPU')
 
         print('Loading datasets and oversample the training data')
-        train_df = pd.read_csv(self.raw_dir + dname + '/train.tsv', sep='\t')
-        valid_df = pd.read_csv(self.raw_dir + dname + '/valid.tsv', sep='\t')
+        train_df = pd.read_csv(self.raw_dir + self.dname + '/train.tsv', sep='\t')
+        valid_df = pd.read_csv(self.raw_dir + self.dname + '/valid.tsv', sep='\t')
 
         if self.params['balance']:
             label_count = Counter(train_df.label)
             for label_tmp in label_count:
-                sample_num = label_count.most_common(1)[0][1] - label_count[label_tmp]
-                if sample_num == 0:
+                # downsampling
+                sample_num = label_count.most_common()[-1][1]
+                if sample_num - label_count[label_tmp] == 0:
                     continue
 
                 train_df = pd.concat([train_df,
                     train_df[train_df.label==label_tmp].sample(
-                        int(sample_num), replace=True
+                        int(sample_num), replace=False
                     )])
 
             train_df = train_df.reset_index() # to prevent index key error
@@ -392,25 +390,33 @@ if __name__ == '__main__':
     odir = './resources/embedding/'
     raw_dir = './data/raw/'
     encode_dir = './data/encode/'
-    odir='./resources/embedding/'
 
-    for dname in ['amazon', 'yelp', 'imdb']:
-        print('Training Word Embeddings: ', dname)
-        train_w2v(dname, raw_dir=raw_dir, odir=odir)
-        print('Training LDA: ', dname)
-        train_lda(dname, raw_dir=raw_dir, odir=odir)
-        print('Training Doc2vec: ', dname)
-        train_doc2v(dname, raw_dir=raw_dir, odir=odir)
+    dname = sys.argv[1] # ['amazon', 'yelp', 'imdb']
+#    print('Training Word Embeddings: ', dname)
+#    train_w2v(dname, raw_dir=raw_dir, odir=odir)
+#    print('Training LDA: ', dname)
+#    train_lda(dname, raw_dir=raw_dir, odir=odir)
+#    print('Training Doc2vec: ', dname)
+#    train_doc2v(dname, raw_dir=raw_dir, odir=odir)
 
-        # load the params (max_len) and fine tune BERT
-#        print('Fine Tuning Google BERT: ', dname)
-#        params = json.load(open(encode_dir+dname+'/params.json'))
-#        params['decay_rate'] = .001
-#        params['lr'] = 2e-5
-#        params['warm_steps'] = 100
-#        params['train_steps'] = 1000
-#        params['batch_size'] = 32
-#        params['balance'] = True
-#        bmodel = FineTuneBert(dname, raw_dir=raw_dir, odir=odir, params=params)
-#        bmodel.tune_bert()
+    # load the params (max_len) and fine tune BERT
+    print('Fine Tuning Google BERT: ', dname)
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+    odir = odir + dname + '/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+    odir = odir + 'bert/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+
+    params = json.load(open(encode_dir+dname+'/params.json'))
+    params['decay_rate'] = .001
+    params['lr'] = 1e-5
+    params['warm_steps'] = 100
+    params['train_steps'] = 1000
+    params['batch_size'] = 32
+    params['balance'] = True
+    bmodel = FineTuneBert(dname, raw_dir=raw_dir, odir=odir, params=params)
+    bmodel.tune_bert()
 

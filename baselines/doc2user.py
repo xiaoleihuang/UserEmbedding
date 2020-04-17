@@ -1,41 +1,29 @@
-'''Extract topics from each document, average all topic vectors as user representations
-This script is to implement methods from Multi-View Unsupervised User Feature Embedding for Social
-Media-based Substance Use Prediction
-
-PostLDA-Doc
+'''This script implements the paper of Multi-View Unsupervised User Feature Embedding for Social Media-based Substance Use Prediction: Post-D-DBOW
 '''
+
 import gensim
-from gensim.models import LdaModel
-import pickle
-import numpy as np
-import sys
+from gensim.models.doc2vec import Doc2Vec
 
 
-class Lda2User(object):
-    '''Apply LDA model on the documents to generate user and product representation.
+class Doc2User(object):
+    '''Apply Doc2Vec model on the documents to generate user and product representation.
         Outputs will be one user/product_id + vect per line.
 
         Parameters
         ----------
         task: str
             Task name, such as amazon, yelp and imdb
-        dict_path: str
-            Path of LDA dictionary file
         model_path: str
             Path of LDA model file
     '''
-    def __init__(self, task, dict_path, model_path):
+    def __init__(self, task, model_path):
         self.task = task
-        self.dictionary = self.__load_dict(dict_path)
         self.model = self.__load_model(model_path)
 
-    def __load_dict(self, dict_path):
-        return pickle.load(open(dict_path, 'rb'))
-
     def __load_model(self, model_path):
-        return LdaModel.load(model_path)
+        return Doc2Vec.load(model_path)
 
-    def lda2item(self, data_path, opath, id_idx=2, mode='average'):
+    def doc2item(self, data_path, opath, id_idx=2, mode='average'):
         '''Extract user vectors from the given data path
 
             Parameters
@@ -73,7 +61,7 @@ class Lda2User(object):
         for tid in item_dict:
             # encode the document by lda
             item_dict[tid] = np.asarray([
-                self.model[self.dictionary.doc2bow(doc)] for doc in item_dict[tid]
+                self.model[doc] for doc in item_dict[tid]
             ])
             # average the lda inferred documents
             item_dict[tid] = np.mean(item_dict[tid], axis=0)
@@ -91,13 +79,12 @@ if __name__ == '__main__':
 
     data_dir = raw_dir + task + '/'
     baseline_dir = '../resources/baselines/'
-    odir = baseline_dir + 'lda2user/'
+    odir = baseline_dir + 'doc2user/'
     opath_user = odir + 'user.txt'
     opath_product = odir + 'product.txt'
 
     resource_dir = '../resources/embedding/'
-    dict_path = resource_dir + task + '/lda_dict.pkl'
-    model_path = resource_dir + task + '/lda.model'
+    model_path = resource_dir + task + '/doc2v.model'
 
     # create directories
     if not os.path.exists(baseline_dir):
@@ -105,19 +92,17 @@ if __name__ == '__main__':
     if not os.path.exists(odir):
         os.mkdir(odir)
 
-    # Lda2User
-    l2u = Lda2User(task, dict_path, model_path)
+    # Doc2User
+    d2u = Doc2User(task, dict_path, model_path)
     # user vectors
-    l2u.lda2item(
+    d2u.doc2item(
         data_path=task_data_path, 
         opath=opath_user, 
         id_idx=2
     )
     # product vectors
-    l2u.lda2item(
+    d2u.doc2item(
         data_path=task_data_path, 
         opath=opath_product, 
         id_idx=3
     )
-
-

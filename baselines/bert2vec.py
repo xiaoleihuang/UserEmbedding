@@ -1,11 +1,14 @@
 '''Average BERT outputs as user representations.
 '''
 
+import os
+import sys
+
+import numpy as np
 import torch
 from transformers import BertTokenizer, BertConfig, BertModel
 from transformers import BertForSequenceClassification
-import os
-import sys
+
 
 class Bert2User(object):
     '''Apply Doc2Vec model on the documents to generate user and product representation.
@@ -25,7 +28,7 @@ class Bert2User(object):
 
     def __load_model(self, model_dir):
         if os.path.exists(model_dir):
-            clf = BertForSequenceClassification.from_pretrained(
+            model = BertForSequenceClassification.from_pretrained(
                 model_dir, output_hidden_states=True
             )
         else:
@@ -50,6 +53,7 @@ class Bert2User(object):
         item_dict = dict()
         ofile = open(opath, 'w')
 
+        print('Loading Data...')
         with open(data_path) as dfile:
             dfile.readline() # skip the column names
 
@@ -63,23 +67,26 @@ class Bert2User(object):
 
                 # collect data
                 if mode == 'average':
-                    item_dict[tid].append(text.split())
+                    item_dict[tid].append(self.tokenizer.encode_plus(
+                        text,
+                        add_special_tokens=True,
+                        max_length=512,
+                        return_tensors='pt'
+                    ))
                 else:
                     if len(item_dict[tid]) == 0:
-                        item_dict[tid].append(self.tokenizer.encode_plus(
-                            text,
-                            add_special_tokens=True,
-                            return_tensors='pt'
-                        ))
+                        item_dict[tid].append(text.split())
                     else:
                         item_dict[tid][0].extend(text.split())
 
         for tid in item_dict:
+            print('Working on item: ', tid)
             # preprocess the document
             if len(item_dict[tid]) == 1:
                 item_dict[tid][0] = self.tokenizer.encode_plus(
                     item_dict[tid][0],
                     add_special_tokens=True,
+                    max_length=512,
                     return_tensors='pt'
                 )
 

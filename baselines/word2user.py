@@ -4,6 +4,7 @@ average all document vectors as user or product representations
 import os
 import gensim
 import numpy as np
+import sys
 
 
 class Word2User(object):
@@ -112,7 +113,8 @@ if __name__ == '__main__':
 
     data_dir = raw_dir + task + '/'
     baseline_dir = '../resources/baselines/'
-    odir = baseline_dir + 'word2user/'
+    task_dir = baseline_dir + task + '/'
+    odir = task_dir + 'word2user/'
     opath_user = odir + 'user.txt'
     opath_product = odir + 'product.txt'
 
@@ -123,6 +125,8 @@ if __name__ == '__main__':
     # create directories
     if not os.path.exists(baseline_dir):
         os.mkdir(baseline_dir)
+    if not os.path.exists(task_dir):
+        os.mkdir(task_dir)
     if not os.path.exists(odir):
         os.mkdir(odir)
 

@@ -9,6 +9,7 @@ from gensim.models import LdaModel
 import pickle
 import numpy as np
 import sys
+import os
 
 
 class Lda2User(object):
@@ -62,7 +63,7 @@ class Lda2User(object):
                     item_dict[tid] = []
 
                 # collect data
-                if mode == 'average'
+                if mode == 'average':
                     item_dict[tid].append(text.split())
                 else:
                     if len(item_dict[tid]) == 0:
@@ -91,7 +92,8 @@ if __name__ == '__main__':
 
     data_dir = raw_dir + task + '/'
     baseline_dir = '../resources/baselines/'
-    odir = baseline_dir + 'lda2user/'
+    task_dir = baseline_dir + task + '/'
+    odir = task_dir + 'lda2user/'
     opath_user = odir + 'user.txt'
     opath_product = odir + 'product.txt'
 
@@ -102,6 +104,8 @@ if __name__ == '__main__':
     # create directories
     if not os.path.exists(baseline_dir):
         os.mkdir(baseline_dir)
+    if not os.path.exists(task_dir):
+        os.mkdir(task_dir)
     if not os.path.exists(odir):
         os.mkdir(odir)
 

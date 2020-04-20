@@ -3,6 +3,9 @@
 
 import gensim
 from gensim.models.doc2vec import Doc2Vec
+import sys
+import os
+import numpy as np
 
 
 class Doc2User(object):
@@ -19,6 +22,8 @@ class Doc2User(object):
     def __init__(self, task, model_path):
         self.task = task
         self.model = self.__load_model(model_path)
+        self.model.delete_temporary_training_data(
+            keep_doctags_vectors=True, keep_inference=True)
 
     def __load_model(self, model_path):
         return Doc2Vec.load(model_path)
@@ -50,7 +55,7 @@ class Doc2User(object):
                     item_dict[tid] = []
 
                 # collect data
-                if mode == 'average'
+                if mode == 'average':
                     item_dict[tid].append(text.split())
                 else:
                     if len(item_dict[tid]) == 0:
@@ -59,9 +64,9 @@ class Doc2User(object):
                         item_dict[tid][0].extend(text.split())
 
         for tid in item_dict:
-            # encode the document by lda
+            # encode the document by doc2vec
             item_dict[tid] = np.asarray([
-                self.model[doc] for doc in item_dict[tid]
+                self.model.infer_vector(doc) for doc in item_dict[tid]
             ])
             # average the lda inferred documents
             item_dict[tid] = np.mean(item_dict[tid], axis=0)
@@ -79,7 +84,8 @@ if __name__ == '__main__':
 
     data_dir = raw_dir + task + '/'
     baseline_dir = '../resources/baselines/'
-    odir = baseline_dir + 'doc2user/'
+    task_dir = baseline_dir + task + '/'
+    odir = task_dir + 'doc2user/'
     opath_user = odir + 'user.txt'
     opath_product = odir + 'product.txt'
 
@@ -89,11 +95,13 @@ if __name__ == '__main__':
     # create directories
     if not os.path.exists(baseline_dir):
         os.mkdir(baseline_dir)
+    if not os.path.exists(task_dir):
+        os.mkdir(task_dir)
     if not os.path.exists(odir):
         os.mkdir(odir)
 
     # Doc2User
-    d2u = Doc2User(task, dict_path, model_path)
+    d2u = Doc2User(task, model_path)
     # user vectors
     d2u.doc2item(
         data_path=task_data_path, 

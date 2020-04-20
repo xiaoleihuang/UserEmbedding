@@ -2,10 +2,11 @@
 average all document vectors as user or product representations
 '''
 import os
+import sys
+import pickle
+
 import gensim
 import numpy as np
-import sys
-
 
 class Word2User(object):
     '''Apply Word2Vec model on the documents to generate user and product representation.
@@ -32,9 +33,9 @@ class Word2User(object):
     def __load_model(self, model_path, emb_dim=300):
         # support three types, bin/txt/npy
         emb_len = len(self.tkn.word_index)
-        if embed_len > self.tkn.num_words:
-            embed_len = self.tkn.num_words
-        model = np.zeros((embed_len + 1, emb_dim))
+        if emb_len > self.tkn.num_words:
+            emb_len = self.tkn.num_words
+        model = np.zeros((emb_len + 1, emb_dim))
 
         if model_path.endswith('.bin'):
             w2v_model = gensim.models.KeyedVectors.load_word2vec_format(
@@ -95,7 +96,9 @@ class Word2User(object):
         for tid in item_dict:
             # encode the document by word2vec
             item_dict[tid] = np.asarray([
-                self.model[self.tkn.word_index[word]] for word in item_dict[tid]
+                self.model[self.tkn.word_index[word]] for word in item_dict[tid] \
+                    if word in self.tkn.word_index and \
+                        self.tkn.word_index[word] < self.tkn.num_words
             ])
             # average the word2vec inferred documents
             item_dict[tid] = np.mean(item_dict[tid], axis=0)

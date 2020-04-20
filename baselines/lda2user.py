@@ -73,9 +73,11 @@ class Lda2User(object):
 
         for tid in item_dict:
             # encode the document by lda
-            item_dict[tid] = np.asarray([
-                self.model[self.dictionary.doc2bow(doc)] for doc in item_dict[tid]
-            ])
+            for idx, doc in enumerate(item_dict[tid]):
+                output = self.model[self.dictionary.doc2bow(doc)]
+                item_dict[tid][idx] = [0.] * self.model.num_topics
+                for item in output:
+                    item_dict[tid][idx][item[0]] = item[1]
             # average the lda inferred documents
             item_dict[tid] = np.mean(item_dict[tid], axis=0)
 

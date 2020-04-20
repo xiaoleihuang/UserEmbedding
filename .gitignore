@@ -134,5 +134,6 @@ dmypy.json
 /resources/embedding/
 /resources/models/
 /resources/skipgrams/
+/resources/baselines/
 /logs/
 /*.sh

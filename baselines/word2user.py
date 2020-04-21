@@ -93,7 +93,7 @@ class Word2User(object):
                 # collect data
                 item_dict[tid].extend(text.split())
 
-        for tid in item_dict:
+        for tid in list(item_dict.keys()):
             # encode the document by word2vec
             item_dict[tid] = np.asarray([
                 self.model[self.tkn.word_index[word]] for word in item_dict[tid] \
@@ -106,6 +106,9 @@ class Word2User(object):
 
             # write to file
             ofile.write(tid + '\t' + ' '.join(map(str, item_dict[tid])))
+
+            # save memory
+            del item_dict[tid]
         ofile.flush()
         ofile.close()
 

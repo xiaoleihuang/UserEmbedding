@@ -72,7 +72,7 @@ class Lda2User(object):
                     else:
                         item_dict[tid][0].extend(text.split())
 
-        for tid in item_dict:
+        for tid in list(item_dict.keys()):
             print(tid)
             # encode the document by lda
             for idx, doc in enumerate(item_dict[tid]):
@@ -85,6 +85,9 @@ class Lda2User(object):
 
             # write to file
             ofile.write(tid + '\t' + ' '.join(map(str, item_dict[tid])))
+
+            # save memory
+            del item_dict[tid]
         ofile.flush()
         ofile.close()
 

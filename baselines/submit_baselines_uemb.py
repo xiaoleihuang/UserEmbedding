@@ -19,8 +19,8 @@ for task in tasks:
         script_file = 'run_{}_{}.sh'.format(baseline, task)
         print('Running {}'.format(script_file))
         with open(script_file, 'w') as wfile:
-            wfile.write('NUM_CORES=15')
-            wfile.write('export MKL_NUM_THREADS=$NUM_CORES OMP_NUM_THREADS=$NUM_CORES')
+            wfile.write('NUM_CORES=15\n')
+            wfile.write('export MKL_NUM_THREADS=$NUM_CORES OMP_NUM_THREADS=$NUM_CORES\n')
             wfile.write('source ~/.bashrc\n')
             wfile.write('python {}.py {}\n'.format(baseline, task))
         command = pattern_str.format(script_file)

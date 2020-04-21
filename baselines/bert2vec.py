@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 import torch
+torch.set_num_threads(15)
 from transformers import BertTokenizer, BertConfig, BertModel
 from transformers import BertForSequenceClassification
 
@@ -48,7 +49,7 @@ class Bert2User(object):
             opath: str
                 Path of output path for user vectors
             id_idx: int
-                Index of id, 2 is for user, 3 is for product
+                Index of id, 2 is for user, 1 is for product
         '''
         item_dict = dict()
         ofile = open(opath, 'w')
@@ -58,10 +59,17 @@ class Bert2User(object):
             dfile.readline() # skip the column names
 
             for line in dfile:
-                line = line.strip().split('\t')
+                line = line.strip()
+                if len(line) < 5:
+                    continue
+                line = line.split('\t')
 
-                tid = line[id_idx]
-                text = line[3]
+                tid = line[id_idx].strip()
+                text = line[3].strip()
+
+                if len(tid) == 0 or len(text) == 0:
+                    continue
+
                 if tid not in item_dict:
                     item_dict[tid] = []
 
@@ -138,5 +146,5 @@ if __name__ == '__main__':
     d2u.bert2item(
         data_path=task_data_path, 
         opath=opath_product, 
-        id_idx=3
+        id_idx=1
     )

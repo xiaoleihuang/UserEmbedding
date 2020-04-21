@@ -74,7 +74,7 @@ class Word2User(object):
             opath: str
                 Path of output path for user vectors
             id_idx: int
-                Index of id, 2 is for user, 3 is for product
+                Index of id, 2 is for user, 1 is for product
         '''
         item_dict = dict()
         ofile = open(opath, 'w')
@@ -101,6 +101,7 @@ class Word2User(object):
                         self.tkn.word_index[word] < self.tkn.num_words
             ])
             # average the word2vec inferred documents
+            print(tid)
             item_dict[tid] = np.mean(item_dict[tid], axis=0)
 
             # write to file
@@ -145,5 +146,5 @@ if __name__ == '__main__':
     l2u.word2item(
         data_path=task_data_path, 
         opath=opath_product, 
-        id_idx=3
+        id_idx=1
     )

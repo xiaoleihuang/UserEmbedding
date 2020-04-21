@@ -46,11 +46,12 @@ class Lda2User(object):
             opath: str
                 Path of output path for user vectors
             id_idx: int
-                Index of id, 2 is for user, 3 is for product
+                Index of id, 2 is for user, 1 is for product
         '''
         item_dict = dict()
         ofile = open(opath, 'w')
 
+        print('Loading Data')
         with open(data_path) as dfile:
             dfile.readline() # skip the column names
 
@@ -72,6 +73,7 @@ class Lda2User(object):
                         item_dict[tid][0].extend(text.split())
 
         for tid in item_dict:
+            print(tid)
             # encode the document by lda
             for idx, doc in enumerate(item_dict[tid]):
                 output = self.model[self.dictionary.doc2bow(doc)]
@@ -123,7 +125,7 @@ if __name__ == '__main__':
     l2u.lda2item(
         data_path=task_data_path, 
         opath=opath_product, 
-        id_idx=3
+        id_idx=1
     )
 
 

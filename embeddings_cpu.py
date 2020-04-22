@@ -18,12 +18,12 @@ from gensim.models.wrappers import LdaMallet
 from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
 
 import torch
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+#from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 from keras.preprocessing.sequence import pad_sequences
-from transformers import BertTokenizer, BertConfig
-from transformers import AdamW, BertForSequenceClassification, get_linear_schedule_with_warmup
-import torch.nn.functional as F
-from tqdm import tqdm, trange
+#from transformers import BertTokenizer, BertConfig
+#from transformers import AdamW, BertForSequenceClassification, get_linear_schedule_with_warmup
+#import torch.nn.functional as F
+#from tqdm import tqdm, trange
 from sklearn.metrics import f1_score
 
 import pandas as pd
@@ -84,7 +84,7 @@ def train_lda(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
 
     doc_matrix = RawCorpus(dpath, True, dictionary)
 
-    if dname == 'amazon':
+    if dname == 'amazon1':
 #        path_to_mallet_binary = "/export/b10/xhuang/xiaolei_data/UserEmbedding/baselines/Mallet/bin/mallet"
 #        model = LdaMallet(
 #            path_to_mallet_binary, corpus=doc_matrix, 
@@ -365,31 +365,6 @@ def train_doc2v(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
     )
 
     model.save(odir + 'doc2v.model')
-
-
-def doc_emb_lda():
-    '''Generate document embeddings by LDA
-    '''
-    pass
-
-
-def doc_emb_bert():
-    '''Generate document embeddings by BERT
-    '''
-    pass
-
-
-def doc_emb_w2v():
-    '''Generate document embeddings by BERT
-        average all word representations
-    '''
-    pass
-
-
-def doc_emb_doc2v():
-    '''Generate document embeddings by Doc2V
-    '''
-    pass
 
 
 if __name__ == '__main__':

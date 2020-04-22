@@ -54,7 +54,8 @@ def train_w2v(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
     corpus = RawCorpus(dpath)
     model = Word2Vec(
         corpus, min_count=2, window=5, 
-        size=300, iter=10, sg=1, workers=8
+        size=300, iter=10, sg=1, workers=8,
+        max_vocab_size=20000,
     )
 
     odir = odir + dname + '/'
@@ -78,19 +79,27 @@ def train_lda(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
         dictionary = pickle.load(open(odir + 'lda_dict.pkl', 'rb'))
     else:
         corpus = RawCorpus(dpath)
-        dictionary = Dictionary(corpus)
+        dictionary = Dictionary(corpus, prune_at=20000)
         dictionary.save(odir + 'lda_dict.pkl')
 
     doc_matrix = RawCorpus(dpath, True, dictionary)
 
-#    model = LdaModel(
-#        doc_matrix, id2word=dictionary, num_topics=300,
-#        passes=5, alpha='symmetric'
-#    )
-    model = LdaMulticore(
-        doc_matrix, id2word=dictionary, num_topics=300,
-        passes=5, alpha='symmetric', workers=8
-    )
+    if dname == 'amazon1':
+#        path_to_mallet_binary = "/export/b10/xhuang/xiaolei_data/UserEmbedding/baselines/Mallet/bin/mallet"
+#        model = LdaMallet(
+#            path_to_mallet_binary, corpus=doc_matrix, 
+#            num_topics=300, id2word=dictionary
+#        )
+#        model = malletmodel2ldamodel(model)
+        model = LdaModel(
+            doc_matrix, id2word=dictionary, num_topics=300,
+            passes=5, alpha='symmetric'
+        )
+    else:
+        model = LdaMulticore(
+            doc_matrix, id2word=dictionary, num_topics=300,
+            passes=5, alpha='symmetric', workers=4
+        )
     model.save(odir + 'lda.model')
 
 
@@ -121,6 +130,7 @@ class FineTuneBert:
     def get_free_gpu(self):
         os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp')
         memory_available = [int(x.split()[2]) for x in open('tmp', 'r').readlines()]
+        os.remove('tmp')
         return np.argmax(memory_available)
 
     # Function to calculate the accuracy of our predictions vs labels
@@ -151,11 +161,12 @@ class FineTuneBert:
 
             print('Tuning BERT via device: ', device)
             print('Device Name: ', torch.cuda.get_device_name(device))
+            device = torch.device('cuda:{}'.format(device))
         else:
             device = torch.device('cpu')
             print('Tuning BERT via device: CPU')
 
-        print('Loading datasets and oversample the training data')
+        print('Loading datasets and downsample the training data')
         train_df = pd.read_csv(self.raw_dir + self.dname + '/train.tsv', sep='\t')
         valid_df = pd.read_csv(self.raw_dir + self.dname + '/valid.tsv', sep='\t')
 
@@ -238,7 +249,7 @@ class FineTuneBert:
 
         # organize parameters
         param_optimizer = list(model.named_parameters())
-        no_decay = ['bias'] # , 'bert' freeze all bert parameters
+        no_decay = [] # , 'bert' 'bias' freeze all bert parameters
         optimizer_grouped_parameters = [
             {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
              'weight_decay_rate': self.params['decay_rate']},
@@ -350,73 +361,51 @@ def train_doc2v(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
     corpus = read_corpus(dpath)
 
     # init, train and save the model
-    model = Doc2Vec(vector_size=300, min_count=2, epochs=40)
+    model = Doc2Vec(
+        vector_size=300, min_count=2, epochs=40, 
+        workers=8, max_vocab_size=20000
+    )
     model.build_vocab(corpus)
 
     model.train(
         corpus, total_examples=model.corpus_count, 
-        epochs=model.epochs, workers=8
+        epochs=model.epochs
     )
 
     model.save(odir + 'doc2v.model')
 
 
-def doc_emb_lda():
-    '''Generate document embeddings by LDA
-    '''
-    pass
-
-
-def doc_emb_bert():
-    '''Generate document embeddings by BERT
-    '''
-    pass
-
-
-def doc_emb_w2v():
-    '''Generate document embeddings by BERT
-        average all word representations
-    '''
-    pass
-
-
-def doc_emb_doc2v():
-    '''Generate document embeddings by Doc2V
-    '''
-    pass
-
-
 if __name__ == '__main__':
-    odir = './resources/embedding/'
+    odir = './resources/embedding_vocab/'
     raw_dir = './data/raw/'
     encode_dir = './data/encode/'
 
     dname = sys.argv[1] # ['amazon', 'yelp', 'imdb']
-#    print('Training Word Embeddings: ', dname)
-#    train_w2v(dname, raw_dir=raw_dir, odir=odir)
-#    print('Training LDA: ', dname)
-#    train_lda(dname, raw_dir=raw_dir, odir=odir)
-#    print('Training Doc2vec: ', dname)
-#    train_doc2v(dname, raw_dir=raw_dir, odir=odir)
+    print('Training Word Embeddings: ', dname)
+    train_w2v(dname, raw_dir=raw_dir, odir=odir)
+    print('Training LDA: ', dname)
+    train_lda(dname, raw_dir=raw_dir, odir=odir)
+    print('Training Doc2vec: ', dname)
+    train_doc2v(dname, raw_dir=raw_dir, odir=odir)
 
     # load the params (max_len) and fine tune BERT
-    print('Fine Tuning Google BERT: ', dname)
-    if not os.path.exists(odir):
-        os.mkdir(odir)
-    odir = odir + dname + '/'
-    if not os.path.exists(odir):
-        os.mkdir(odir)
-    odir = odir + 'bert/'
-    if not os.path.exists(odir):
-        os.mkdir(odir)
+#    print('Fine Tuning Google BERT: ', dname)
+#    if not os.path.exists(odir):
+#        os.mkdir(odir)
+#    odir = odir + dname + '/'
+#    if not os.path.exists(odir):
+#        os.mkdir(odir)
+#    odir = odir + 'bert/'
+#    if not os.path.exists(odir):
+#        os.mkdir(odir)
 
-    params = json.load(open(encode_dir+dname+'/params.json'))
-    params['decay_rate'] = .001
-    params['lr'] = 1e-5
-    params['warm_steps'] = 100
-    params['train_steps'] = 1000
-    params['batch_size'] = 32
-    params['balance'] = True
-    bmodel = FineTuneBert(dname, raw_dir=raw_dir, odir=odir, params=params)
-    bmodel.tune_bert()
+#    params = json.load(open(encode_dir+dname+'/params.json'))
+#    params['decay_rate'] = .001
+#    params['lr'] = 1e-5
+#    params['warm_steps'] = 100
+#    params['train_steps'] = 1000
+#    params['batch_size'] = 32
+#    params['balance'] = True
+#    bmodel = FineTuneBert(dname, raw_dir=raw_dir, odir=odir, params=params)
+#    bmodel.tune_bert()
 

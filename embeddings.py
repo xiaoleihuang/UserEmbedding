@@ -381,31 +381,41 @@ if __name__ == '__main__':
     encode_dir = './data/encode/'
 
     dname = sys.argv[1] # ['amazon', 'yelp', 'imdb']
-    print('Training Word Embeddings: ', dname)
-    train_w2v(dname, raw_dir=raw_dir, odir=odir)
-    print('Training LDA: ', dname)
-    train_lda(dname, raw_dir=raw_dir, odir=odir)
-    print('Training Doc2vec: ', dname)
-    train_doc2v(dname, raw_dir=raw_dir, odir=odir)
+    mname = sys.argv[2] # lda, word2vec, doc2vec and bert
+    if dname not in ['amazon', 'yelp', 'imdb']:
+        raise ValueError('Data {} is not supported currently...'.format(dname))
 
-    # load the params (max_len) and fine tune BERT
-#    print('Fine Tuning Google BERT: ', dname)
-#    if not os.path.exists(odir):
-#        os.mkdir(odir)
-#    odir = odir + dname + '/'
-#    if not os.path.exists(odir):
-#        os.mkdir(odir)
-#    odir = odir + 'bert/'
-#    if not os.path.exists(odir):
-#        os.mkdir(odir)
+    if mname == 'word2vec':
+        print('Training Word Embeddings: ', dname)
+        train_w2v(dname, raw_dir=raw_dir, odir=odir)
+    elif mname == 'lda':
+        print('Training LDA: ', dname)
+        train_lda(dname, raw_dir=raw_dir, odir=odir)
+    elif mname == 'doc2vec':
+        print('Training Doc2vec: ', dname)
+        train_doc2v(dname, raw_dir=raw_dir, odir=odir)
 
-#    params = json.load(open(encode_dir+dname+'/params.json'))
-#    params['decay_rate'] = .001
-#    params['lr'] = 1e-5
-#    params['warm_steps'] = 100
-#    params['train_steps'] = 1000
-#    params['batch_size'] = 32
-#    params['balance'] = True
-#    bmodel = FineTuneBert(dname, raw_dir=raw_dir, odir=odir, params=params)
-#    bmodel.tune_bert()
+    elif mname == 'bert':
+        # load the params (max_len) and fine tune BERT
+        print('Fine Tuning Google BERT: ', dname)
+        if not os.path.exists(odir):
+            os.mkdir(odir)
+        odir = odir + dname + '/'
+        if not os.path.exists(odir):
+            os.mkdir(odir)
+        odir = odir + 'bert/'
+        if not os.path.exists(odir):
+            os.mkdir(odir)
+
+        params = json.load(open(encode_dir+dname+'/params.json'))
+        params['decay_rate'] = .001
+        params['lr'] = 1e-5
+        params['warm_steps'] = 100
+        params['train_steps'] = 1000
+        params['batch_size'] = 32
+        params['balance'] = True
+        bmodel = FineTuneBert(dname, raw_dir=raw_dir, odir=odir, params=params)
+        bmodel.tune_bert()
+    else:
+        raise ValueError('Model name, {}, is not in supported now...'.format(mname))
 

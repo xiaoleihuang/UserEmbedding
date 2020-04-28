@@ -41,7 +41,7 @@ def build_model(params=None):
             'optimizer': 'adam',
             'lr': 0.00001,
         }
-        
+
     # Word Word Input
     word_input = keras.layers.Input((1,), name='word_input')
     word_context_input = keras.layers.Input((1,), name='word_context_input')
@@ -250,7 +250,7 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             cur_user = user_info[entry.uid]
             decay_num = utils.sample_decay(cur_user['count'])
 
-            if decay_num > np.ramdom.random():
+            if decay_num > np.random.random():
                 uw_pairs, uw_labels = utils.user_word_sampler(
                     cur_user['uid_encode'], cur_user['words'],
                     params['vocab_size'], negative_samples=1
@@ -274,7 +274,7 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             cur_prod = product_info[entry.bid]
             decay_num = utils.sample_decay(cur_prod['count'])
 
-            if decay_num > np.ramdom.random():
+            if decay_num > np.random.random():
                 pu_pairs, pu_labels = utils.user_word_sampler(
                     cur_prod['bid_encode'], cur_prod['uids_encode'],
                     params['user_size'], negative_samples=1

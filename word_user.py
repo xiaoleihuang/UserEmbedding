@@ -175,7 +175,7 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             cur_user = user_info[entry.uid]
             decay_num = utils.sample_decay(cur_user['count'])
 
-            if decay_num > np.ramdom.random():
+            if decay_num > np.random.random():
                 uw_pairs, uw_labels = utils.user_word_sampler(
                     cur_user['uid_encode'], cur_user['words'],
                     params['vocab_size'], negative_samples=1

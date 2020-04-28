@@ -126,11 +126,12 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
     # load user data
     user_idx = json.load(open(raw_dir+'user_idx.json'))
     user_info = dict()
+    user_control = set() # control if renew user_info sample method
     with open(encode_dir+'users.json') as dfile:
         for line in dfile:
             line = json.loads(line)
             user_info[line['uid']] = line
-
+            user_info[line['uid']]['count'] = 0
 
     # load tokenizer
     tok = pickle.load(open(encode_dir+dname+'.tkn', 'rb'))
@@ -172,18 +173,34 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             
             '''user info, uw: user-word'''
             cur_user = user_info[entry.uid]
-            uw_pairs, uw_labels = utils.user_word_sampler(
-                cur_user['uid_encode'], cur_user['words'],
-                params['vocab_size'], negative_samples=1
-            )
-            uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
-            uw_labels = np.array(uw_labels, dtype=np.int32)
+            decay_num = utils.sample_decay(cur_user['count'])
+
+            if decay_num > np.ramdom.random():
+                uw_pairs, uw_labels = utils.user_word_sampler(
+                    cur_user['uid_encode'], cur_user['words'],
+                    params['vocab_size'], negative_samples=1
+                )
+                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+                uw_labels = np.array(uw_labels, dtype=np.int32)
+
+                user_info[entry.uid]['count'] += 1
+                user_control.add(entry.uid)
+            else:
+                uw_pairs = None
+                uw_labels = None
+
+            if len(user_control) >= len(user_info) - 1:
+                # restart the control for sampling
+                for uid in user_info:
+                    user_info[uid]['count'] = 0
+                user_control.clear()
             
-            if word_pairs and uw_pairs:
+            if word_pairs:
                 loss += ww_model.train_on_batch(word_pairs, ww_labels)
+            if uw_pairs:
                 loss += uw_model.train_on_batch(uw_pairs, uw_labels)
-                
-                loss_avg = loss / step
+
+            loss_avg = loss / step
             if step % 100 == 0:
                 print('Epoch: {}, Step: {}'.format(epoch, step))
                 print('\tLoss: {}.'.format(loss_avg))

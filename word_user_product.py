@@ -187,20 +187,22 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
     # load user data
     user_idx = json.load(open(raw_dir+'user_idx.json'))
     user_info = dict()
+    user_control = set() # control if renew user_info sample method
     with open(encode_dir+'users.json') as dfile:
         for line in dfile:
             line = json.loads(line)
             user_info[line['uid']] = line
-
+            user_info[line['uid']]['count'] = 0
 
     # load product data
     product_idx = json.load(open(raw_dir+'product_idx.json'))
     product_info = dict()
+    product_control = set() # control if renew product_info sample method
     with open(encode_dir+'products.json') as dfile:
         for line in dfile:
             line = json.loads(line)
             product_info[line['bid']] = line
-
+            product_info[line['bid']]['count'] = 0
 
     # load tokenizer
     tok = pickle.load(open(encode_dir+dname+'.tkn', 'rb'))
@@ -246,37 +248,72 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             
             '''user info, uw: user-word'''
             cur_user = user_info[entry.uid]
-            uw_pairs, uw_labels = utils.user_word_sampler(
-                cur_user['uid_encode'], cur_user['words'],
-                params['vocab_size'], negative_samples=1
-            )
-            uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
-            uw_labels = np.array(uw_labels, dtype=np.int32)
+            decay_num = utils.sample_decay(cur_user['count'])
+
+            if decay_num > np.ramdom.random():
+                uw_pairs, uw_labels = utils.user_word_sampler(
+                    cur_user['uid_encode'], cur_user['words'],
+                    params['vocab_size'], negative_samples=1
+                )
+                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+                uw_labels = np.array(uw_labels, dtype=np.int32)
+
+                user_info[entry.uid]['count'] += 1
+                user_control.add(entry.uid)
+            else:
+                uw_pairs = None
+                uw_labels = None
+
+            if len(user_control) >= len(user_info) - 1:
+                # restart the control for sampling
+                for uid in user_info:
+                    user_info[uid]['count'] = 0
+                user_control.clear()
             
             '''product info, pu: product-user'''
             cur_prod = product_info[entry.bid]
-            pu_pairs, pu_labels = utils.user_word_sampler(
-                cur_prod['bid_encode'], cur_prod['uids_encode'],
-                params['user_size'], negative_samples=1
-            )
-            pu_pairs = [np.array(x) for x in zip(*pu_pairs)]
-            pu_labels = np.array(pu_labels, dtype=np.int32)
-            
-            '''product info, pw: product-word'''
-            pw_pairs, pw_labels = utils.user_word_sampler(
-                cur_prod['bid_encode'], cur_prod['words'],
-                params['vocab_size'], negative_samples=1
-            )
-            pw_pairs = [np.array(x) for x in zip(*pw_pairs)]
-            pw_labels = np.array(pw_labels, dtype=np.int32)
-            
-            if word_pairs and uw_pairs and pu_pairs and pw_pairs:
-                loss += ww_model.train_on_batch(word_pairs, ww_labels)
-                loss += uw_model.train_on_batch(uw_pairs, uw_labels)
-                loss += pu_model.train_on_batch(pu_pairs, pu_labels)
-                loss += pw_model.train_on_batch(pw_pairs, pw_labels)
+            decay_num = utils.sample_decay(cur_prod['count'])
+
+            if decay_num > np.ramdom.random():
+                pu_pairs, pu_labels = utils.user_word_sampler(
+                    cur_prod['bid_encode'], cur_prod['uids_encode'],
+                    params['user_size'], negative_samples=1
+                )
+                pu_pairs = [np.array(x) for x in zip(*pu_pairs)]
+                pu_labels = np.array(pu_labels, dtype=np.int32)
                 
-                loss_avg = loss / step
+                '''product info, pw: product-word'''
+                pw_pairs, pw_labels = utils.user_word_sampler(
+                    cur_prod['bid_encode'], cur_prod['words'],
+                    params['vocab_size'], negative_samples=1
+                )
+                pw_pairs = [np.array(x) for x in zip(*pw_pairs)]
+                pw_labels = np.array(pw_labels, dtype=np.int32)
+                
+                product_info[entry.bid]['count'] += 1
+                product_control.add(entry.bid)
+            else:
+                pw_pairs = None
+                pu_pairs = None
+                pw_labels = None
+                pu_labels = None
+
+            if len(product_control) >= len(product_info) - 1:
+                # restart the control for sampling
+                for bid in product_info:
+                    product_info[bid]['count'] = 0
+                product_control.clear()
+            
+            if word_pairs:
+                loss += ww_model.train_on_batch(word_pairs, ww_labels)
+            if uw_pairs:
+                loss += uw_model.train_on_batch(uw_pairs, uw_labels)
+            if pu_pairs:
+                loss += pu_model.train_on_batch(pu_pairs, pu_labels)
+            if pw_pairs:
+                loss += pw_model.train_on_batch(pw_pairs, pw_labels)
+
+            loss_avg = loss / step
             if step % 100 == 0:
                 print('Epoch: {}, Step: {}'.format(epoch, step))
                 print('\tLoss: {}.'.format(loss_avg))
@@ -311,10 +348,6 @@ if __name__ == '__main__':
     raw_dir = './data/raw/'
     odir = './resources/skipgrams/'
 
-#    for dname in ['amazon', 'yelp', 'imdb']:
-#        raw_dir = raw_dir + dname + '/'
-#        encode_dir = encode_dir + dname + '/'
-#        main(dname, encode_dir, raw_dir, odir=odir)
     dname = sys.argv[1]
     raw_dir = raw_dir + dname + '/'
     encode_dir = encode_dir + dname + '/'

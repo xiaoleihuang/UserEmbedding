@@ -6,6 +6,11 @@ import os
 import json
 
 
+def sample_decay(count, decay=2):
+    '''Calculate decay number for sampling user and product
+    '''
+    return 1 / (1 + decay * count)
+
 def user_word_sampler(uid, sequence, vocab_size, negative_samples=1):
     '''This function was adopted from https://github.com/keras-team/keras-preprocessing/blob/master/keras_preprocessing/sequence.py#L151
 

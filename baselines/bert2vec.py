@@ -75,22 +75,25 @@ class Bert2User(object):
 
                 # collect data
                 if mode == 'average':
-                    item_dict[tid].append(self.tokenizer.encode_plus(
-                        text,
-                        add_special_tokens=True,
-                        max_length=512,
-                        return_tensors='pt'
-                    ))
+                    try:
+                        item_dict[tid].append(self.tokenizer.encode_plus(
+                            text,
+                            add_special_tokens=True,
+                            max_length=512,
+                            return_tensors='pt'
+                        ))
+                    except:
+                        continue
                 else:
                     if len(item_dict[tid]) == 0:
-                        item_dict[tid].append(text.split())
+                        item_dict[tid].append(text)
                     else:
-                        item_dict[tid][0].extend(text.split())
+                        item_dict[tid][0] += text
 
         for tid in list(item_dict.keys()):
             print('Working on item: ', tid)
             # preprocess the document
-            if len(item_dict[tid]) == 1:
+            if len(item_dict[tid]) == 1 and mode != 'average':
                 item_dict[tid][0] = self.tokenizer.encode_plus(
                     item_dict[tid][0],
                     add_special_tokens=True,
@@ -103,10 +106,10 @@ class Bert2User(object):
                 self.model(**doc)[1][-1][:,0,:].detach().numpy() for doc in item_dict[tid]
             ])
             # average the lda inferred documents
-            item_dict[tid] = np.mean(item_dict[tid], axis=0)
+            item_dict[tid] = np.squeeze(np.mean(item_dict[tid], axis=0))
 
             # write to file
-            ofile.write(tid + '\t' + ' '.join(map(str, item_dict[tid])))
+            ofile.write(tid + '\t' + ' '.join(map(str, item_dict[tid])) + '\n')
 
             # save memory
             del item_dict[tid]

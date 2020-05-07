@@ -250,53 +250,77 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             cur_user = user_info[entry.uid]
             decay_num = utils.sample_decay(cur_user['count'])
 
-            if decay_num > np.random.random():
-                uw_pairs, uw_labels = utils.user_word_sampler(
-                    cur_user['uid_encode'], cur_user['words'],
-                    params['vocab_size'], negative_samples=1
-                )
-                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
-                uw_labels = np.array(uw_labels, dtype=np.int32)
+#            if decay_num > np.random.random():
+#                uw_pairs, uw_labels = utils.user_word_sampler(
+#                    cur_user['uid_encode'], cur_user['words'],
+#                    params['vocab_size'], negative_samples=1
+#                )
+#                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+#                uw_labels = np.array(uw_labels, dtype=np.int32)
 
-                user_info[entry.uid]['count'] += 1
-                user_control.add(entry.uid)
-            else:
-                uw_pairs = None
-                uw_labels = None
+#                user_info[entry.uid]['count'] += 1
+#                user_control.add(entry.uid)
+#            else:
+#                uw_pairs = None
+#                uw_labels = None
 
-            if len(user_control) >= len(user_info) - 1:
-                # restart the control for sampling
-                for uid in user_info:
-                    user_info[uid]['count'] = 0
-                user_control.clear()
+#            if len(user_control) >= len(user_info) - 1:
+#                # restart the control for sampling
+#                for uid in user_info:
+#                    user_info[uid]['count'] = 0
+#                user_control.clear()
+            uw_pairs, uw_labels = utils.user_word_sampler(
+                cur_user['uid_encode'], encode_doc[0], 
+                params['vocab_size'], set(cur_user['words']), 
+                negative_samples=1
+            )
+            uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+            uw_labels = np.array(uw_labels, dtype=np.int32)
+
             
             '''product info, pu: product-user'''
             cur_prod = product_info[entry.bid]
             decay_num = utils.sample_decay(cur_prod['count'])
 
-            if decay_num > np.random.random():
-                pu_pairs, pu_labels = utils.user_word_sampler(
-                    cur_prod['bid_encode'], cur_prod['uids_encode'],
-                    params['user_size'], negative_samples=1
-                )
-                pu_pairs = [np.array(x) for x in zip(*pu_pairs)]
-                pu_labels = np.array(pu_labels, dtype=np.int32)
-                
-                '''product info, pw: product-word'''
-                pw_pairs, pw_labels = utils.user_word_sampler(
-                    cur_prod['bid_encode'], cur_prod['words'],
-                    params['vocab_size'], negative_samples=1
-                )
-                pw_pairs = [np.array(x) for x in zip(*pw_pairs)]
-                pw_labels = np.array(pw_labels, dtype=np.int32)
-                
-                product_info[entry.bid]['count'] += 1
-                product_control.add(entry.bid)
-            else:
-                pw_pairs = None
-                pu_pairs = None
-                pw_labels = None
-                pu_labels = None
+#            if decay_num > np.random.random():
+#                pu_pairs, pu_labels = utils.user_word_sampler(
+#                    cur_prod['bid_encode'], cur_prod['uids_encode'],
+#                    params['user_size'], negative_samples=1
+#                )
+#                pu_pairs = [np.array(x) for x in zip(*pu_pairs)]
+#                pu_labels = np.array(pu_labels, dtype=np.int32)
+#                
+#                '''product info, pw: product-word'''
+#                pw_pairs, pw_labels = utils.user_word_sampler(
+#                    cur_prod['bid_encode'], cur_prod['words'],
+#                    params['vocab_size'], negative_samples=1
+#                )
+#                pw_pairs = [np.array(x) for x in zip(*pw_pairs)]
+#                pw_labels = np.array(pw_labels, dtype=np.int32)
+#                
+#                product_info[entry.bid]['count'] += 1
+#                product_control.add(entry.bid)
+#            else:
+#                pw_pairs = None
+#                pu_pairs = None
+#                pw_labels = None
+#                pu_labels = None
+            pu_pairs, pu_labels = utils.user_word_sampler(
+                cur_prod['bid_encode'], [user_idx[entry.uid]],
+                params['user_size'], set(cur_prod['uids_encode']),
+                negative_samples=1
+            )
+            pu_pairs = [np.array(x) for x in zip(*pu_pairs)]
+            pu_labels = np.array(pu_labels, dtype=np.int32)
+            
+            '''product info, pw: product-word'''
+            pw_pairs, pw_labels = utils.user_word_sampler(
+                cur_prod['bid_encode'], encode_doc[0],
+                params['vocab_size'], set(cur_prod['words']),
+                negative_samples=1
+            )
+            pw_pairs = [np.array(x) for x in zip(*pw_pairs)]
+            pw_labels = np.array(pw_labels, dtype=np.int32)
 
             if len(product_control) >= len(product_info) - 1:
                 # restart the control for sampling

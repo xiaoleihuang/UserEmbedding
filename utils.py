@@ -11,7 +11,7 @@ def sample_decay(count, decay=2):
     '''
     return 1 / (1 + decay * count)
 
-def user_word_sampler(uid, sequence, vocab_size, negative_samples=1):
+def user_word_sampler(uid, sequence, vocab_size, filter_words=None, negative_samples=1):
     '''This function was adopted from https://github.com/keras-team/keras-preprocessing/blob/master/keras_preprocessing/sequence.py#L151
 
         uid (int): a user id index
@@ -31,9 +31,13 @@ def user_word_sampler(uid, sequence, vocab_size, negative_samples=1):
 
         for idx in range(num_negative_samples):
             wid = random.randint(1, vocab_size-1)
-            if wid not in words: # ensure user did not use the word
-                couples.append([uid, wid])
-                labels.append(0)
+
+            # ensure user did not use the word
+            while wid in filter_words and len(filter_words) <= vocab_size:
+                wid = random.randint(1, vocab_size-1)
+
+            couples.append([uid, wid])
+            labels.append(0)
         
     # shuffle
     seed = random.randint(0, 10e6)

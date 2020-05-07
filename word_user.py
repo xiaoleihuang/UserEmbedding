@@ -175,26 +175,34 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             cur_user = user_info[entry.uid]
             decay_num = utils.sample_decay(cur_user['count'])
 
-            if decay_num > np.random.random():
-                uw_pairs, uw_labels = utils.user_word_sampler(
-                    cur_user['uid_encode'], cur_user['words'],
-                    params['vocab_size'], negative_samples=1
-                )
-                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
-                uw_labels = np.array(uw_labels, dtype=np.int32)
+#            if decay_num > np.random.random():
+#                uw_pairs, uw_labels = utils.user_word_sampler(
+#                    cur_user['uid_encode'],
+#                    params['vocab_size'], set(cur_user['words']), negative_samples=1
+#                )
+#                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+#                uw_labels = np.array(uw_labels, dtype=np.int32)
 
-                user_info[entry.uid]['count'] += 1
-                user_control.add(entry.uid)
-            else:
-                uw_pairs = None
-                uw_labels = None
+#                user_info[entry.uid]['count'] += 1
+#                user_control.add(entry.uid)
+#            else:
+#                uw_pairs = None
+#                uw_labels = None
 
-            if len(user_control) >= len(user_info) - 1:
-                # restart the control for sampling
-                for uid in user_info:
-                    user_info[uid]['count'] = 0
-                user_control.clear()
-            
+#            if len(user_control) >= len(user_info) - 1:
+#                # restart the control for sampling
+#                for uid in user_info:
+#                    user_info[uid]['count'] = 0
+#                user_control.clear()
+            uw_pairs, uw_labels = utils.user_word_sampler(
+                cur_user['uid_encode'], encode_doc[0],
+                params['vocab_size'], set(cur_user['words']), 
+                negative_samples=1
+            )
+            uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+            uw_labels = np.array(uw_labels, dtype=np.int32)
+
+            '''Train'''
             if word_pairs:
                 loss += ww_model.train_on_batch(word_pairs, ww_labels)
             if uw_pairs:

@@ -132,9 +132,11 @@ dmypy.json
 /data/raw/
 /data/encode/
 /resources/embedding/
+/resources/embedding_full_vocab/
 /resources/models/
 /resources/skipgrams/
 /resources/baselines/
 /logs/
 /baselines/logs/
 /*.sh
+/resources/baselines_full_vocab/

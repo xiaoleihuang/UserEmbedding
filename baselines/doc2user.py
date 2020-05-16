@@ -74,7 +74,7 @@ class Doc2User(object):
             item_dict[tid] = np.mean(item_dict[tid], axis=0)
 
             # write to file
-            ofile.write(tid + '\t' + ' '.join(map(str, item_dict[tid])))
+            ofile.write(tid + '\t' + ' '.join(map(str, item_dict[tid])) + '\n')
 
             # save memory
             del item_dict[tid]

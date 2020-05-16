@@ -136,4 +136,5 @@ dmypy.json
 /resources/skipgrams/
 /resources/baselines/
 /logs/
+/baselines/logs/
 /*.sh

@@ -165,6 +165,7 @@ def load_emb(dpath):
 
     embs = np.asarray(embs)
     idx_ids = dict(zip(ids_idx.keys(), ids_idx.values()))
+    print(embs.shape)
 
     return ids_idx, idx_ids, embs
 
@@ -219,6 +220,7 @@ def eval_product_cluster(emb_pairs, genre_dict, cluster_num=10, opt=None):
         affinity='cosine',#'cosine', 'rbf', 
         n_clusters=cluster_num,
         # assign_labels=discretize,
+        # solver='lobpcg',
         n_jobs=-1
     )
     
@@ -280,6 +282,7 @@ def eval_user_cluster(emb_pairs, user_dict, cluster_num=10, opt=None):
         affinity='cosine',#'cosine', 'rbf', 
         n_clusters=cluster_num,
         # assign_labels=discretize,
+        # solver='lobpcg',
         n_jobs=-1
     )
 
@@ -327,39 +330,55 @@ if __name__ == '__main__':
     raw_dir = './data/raw/'
     resource_dir = './resources/'
     baseline_dir = resource_dir + 'baselines/'
-    my_dir = resource_dir + 'skipgrams/'
 
-    for dname in ['imdb']: # 'yelp', 'amazon'
-        task = 'word_user_product'
+    dname = sys.argv[1] # 'yelp', 'amazon', 'imdb'
+    mode = sys.argv[2] # 'word2user', 'doc2user', 'lda2user', 'bert2user', 'skipgrams'
+    cluster_num = int(sys.argv[3]) # 4, 8, 12
+
+    print('System Arguments: ', ', '.join(sys.argv))
+
+    if dname in ['yelp', 'amazon', 'imdb']:
+        print('Data Name: ', dname.upper())
         prod_json_path = raw_dir + dname + '/products.json'
         prod_dict, user_dict = load_categories(prod_json_path)
 
-        baseline_models = {
-            'word2user', 'doc2user', 'lda2user', 'bert2user'
-        }
-        my_emb_dir = my_dir + dname + '/' + task + '/'
 
-        # evaluate product embeddings by separation
-        print('-----------------------{My model}-------------------')
-#        print('Product Evaluation -------- Cluster')
-#        prod_emb_pair = load_emb(my_emb_dir + 'product.txt')
-#        eval_product_cluster(prod_emb_pair, prod_dict, cluster_num=4, opt=None)
+        if mode == 'skipgrams':
+            my_dir = resource_dir + mode + '/'
+            task = 'word_user_product' # word_user, word_user_product
+            my_emb_dir = my_dir + dname + '/' + task + '/'
 
-        # evaluate user embeddings by MAP@K
-#        print('User Evaluation -------- Cluster')
-#        user_emb_pair = load_emb(my_emb_dir + 'user.txt')
-#        eval_user_cluster(user_emb_pair, user_dict, cluster_num=4, opt=None)
+            # evaluate product embeddings by separation
+            print('-----------------------{My model}-------------------')
+            print('Product Evaluation -------- Cluster')
+            prod_emb_pair = load_emb(my_emb_dir + 'product.txt')
+            eval_product_cluster(prod_emb_pair, prod_dict, cluster_num=cluster_num, opt=None)
 
-        dname_dir = baseline_dir + dname + '/'
-        for baseline in baseline_models:
-            print('-----------------------{}-------------------'.format(baseline))
-            method_dir = dname_dir + baseline + '/'
+            # evaluate user embeddings by MAP@K, for task 1 (word_user_product)
+            print('User Evaluation -------- Cluster: ', task)
+            user_emb_pair = load_emb(my_emb_dir + 'user.txt')
+            eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
+
+            # evaluate user embeddings by MAP@K, for task 2 (word_user)
+            task = 'word_user'
+            my_emb_dir = my_dir + dname + '/' + task + '/'
+
+            print('User Evaluation -------- Cluster: ', task)
+            user_emb_pair = load_emb(my_emb_dir + 'user.txt')
+            eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
+
+        else:
+            dname_dir = baseline_dir + dname + '/'
+            print('-----------------------{}-------------------'.format(mode))
+            method_dir = dname_dir + mode + '/'
 
             print('Product Evaluation -------- Cluster')
             prod_emb_pair = load_emb(method_dir + 'product.txt')
-            eval_product_cluster(prod_emb_pair, prod_dict, cluster_num=4, opt=None)
+            eval_product_cluster(prod_emb_pair, prod_dict, cluster_num=cluster_num, opt=None)
 
             print('User Evaluation -------- Cluster')
             user_emb_pair = load_emb(method_dir + 'user.txt')
-            eval_user_cluster(user_emb_pair, user_dict, cluster_num=4, opt=None)
+            eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
+
+            print('------------------------------------------------------------\n\n')
 

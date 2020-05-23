@@ -141,27 +141,33 @@ def mutual_info(label2pairs):
     return score
 
 
-def load_emb(dpath):
+def load_emb(dpath, sample=None):
     '''load user or product embedding
 
     Parameters:
     -----------
     dpath: str
         A tsv file path of user or product embedding
+    sample: float
+        a number less 1, the sampling proportion
 
     Return:
     
     '''
     ids_idx = dict()
     embs = list()
+    idx = 0
     with open(dpath) as dfile:
-        for idx, line in enumerate(dfile):
+        for line in dfile:
+            if sample and np.random.rand() > sample:
+                continue
             eid, vectors = line.strip().split('\t')
             vectors = np.asarray([float(item) for item in vectors.strip().split()])
             if np.isnan(vectors).any() or np.isinf(vectors).any():
                 print(eid)
             ids_idx[idx] = eid
             embs.append(vectors)
+            idx += 1
 
     embs = np.asarray(embs)
     idx_ids = dict(zip(ids_idx.keys(), ids_idx.values()))
@@ -331,17 +337,21 @@ if __name__ == '__main__':
     resource_dir = './resources/'
     baseline_dir = resource_dir + 'baselines/'
 
-    dname = sys.argv[1] # 'yelp', 'amazon', 'imdb'
+    dname = sys.argv[1] # 'yelp', 'amazon', 'imdb', 'amazon_health'
     mode = sys.argv[2] # 'word2user', 'doc2user', 'lda2user', 'bert2user', 'skipgrams'
     cluster_num = int(sys.argv[3]) # 4, 8, 12
 
     print('System Arguments: ', ', '.join(sys.argv))
 
-    if dname in ['yelp', 'amazon', 'imdb']:
+    if dname in ['yelp', 'amazon', 'imdb', 'amazon_health']:
         print('Data Name: ', dname.upper())
         prod_json_path = raw_dir + dname + '/products.json'
         prod_dict, user_dict = load_categories(prod_json_path)
 
+        if dname == 'yelp':
+            sample = .5
+        else:
+            sample = None
 
         if mode == 'skipgrams':
             my_dir = resource_dir + mode + '/'
@@ -351,12 +361,12 @@ if __name__ == '__main__':
             # evaluate product embeddings by separation
             print('-----------------------{My model}-------------------')
             print('Product Evaluation -------- Cluster')
-            prod_emb_pair = load_emb(my_emb_dir + 'product.txt')
+            prod_emb_pair = load_emb(my_emb_dir + 'product.txt', sample=sample)
             eval_product_cluster(prod_emb_pair, prod_dict, cluster_num=cluster_num, opt=None)
 
             # evaluate user embeddings by MAP@K, for task 1 (word_user_product)
             print('User Evaluation -------- Cluster: ', task)
-            user_emb_pair = load_emb(my_emb_dir + 'user.txt')
+            user_emb_pair = load_emb(my_emb_dir + 'user.txt', sample=sample)
             eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
 
             # evaluate user embeddings by MAP@K, for task 2 (word_user)
@@ -364,7 +374,7 @@ if __name__ == '__main__':
             my_emb_dir = my_dir + dname + '/' + task + '/'
 
             print('User Evaluation -------- Cluster: ', task)
-            user_emb_pair = load_emb(my_emb_dir + 'user.txt')
+            user_emb_pair = load_emb(my_emb_dir + 'user.txt', sample=sample)
             eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
 
         else:
@@ -373,11 +383,11 @@ if __name__ == '__main__':
             method_dir = dname_dir + mode + '/'
 
             print('Product Evaluation -------- Cluster')
-            prod_emb_pair = load_emb(method_dir + 'product.txt')
+            prod_emb_pair = load_emb(method_dir + 'product.txt', sample=sample)
             eval_product_cluster(prod_emb_pair, prod_dict, cluster_num=cluster_num, opt=None)
 
             print('User Evaluation -------- Cluster')
-            user_emb_pair = load_emb(method_dir + 'user.txt')
+            user_emb_pair = load_emb(method_dir + 'user.txt', sample=sample)
             eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
 
             print('------------------------------------------------------------\n\n')

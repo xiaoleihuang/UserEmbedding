@@ -3,8 +3,8 @@ import subprocess
 import time
 import sys
 
-dnames = ['yelp', 'imdb'] # 'amazon', 
-modes = {'skipgrams', 'word2user', 'doc2user', 'lda2user', 'bert2user'}
+dnames = ['amazon_health'] # 'amazon', 'yelp' , 'imdb', 'amazon_health'
+modes = {'word2user', 'doc2user', 'lda2user'} # 'skipgrams', 'word2user', 'doc2user', 'lda2user', 'bert2user'
 cluster_nums = [4, 8, 12]
 
 if not os.path.exists('./grid_scripts/'):

@@ -376,13 +376,13 @@ def train_doc2v(dname, raw_dir='./data/raw/', odir='./resources/embedding/'):
 
 
 if __name__ == '__main__':
-    odir = './resources/embedding_vocab/'
+    odir = './resources/embedding/'
     raw_dir = './data/raw/'
     encode_dir = './data/encode/'
 
-    dname = sys.argv[1] # ['amazon', 'yelp', 'imdb']
+    dname = sys.argv[1] # ['amazon', 'yelp', 'imdb', 'amazon_health']
     mname = sys.argv[2] # lda, word2vec, doc2vec and bert
-    if dname not in ['amazon', 'yelp', 'imdb']:
+    if dname not in ['amazon', 'yelp', 'imdb', 'amazon_health']:
         raise ValueError('Data {} is not supported currently...'.format(dname))
 
     if mname == 'word2vec':

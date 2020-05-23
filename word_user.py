@@ -118,10 +118,9 @@ def build_model(params=None):
     return ww_model, uw_model
 
 
-def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
+def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/', mode='local'):
     # load corpus data
     raw_corpus = pd.read_csv(raw_dir+dname+'.tsv', sep='\t')
-
 
     # load user data
     user_idx = json.load(open(raw_dir+'user_idx.json'))
@@ -173,34 +172,46 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
             
             '''user info, uw: user-word'''
             cur_user = user_info[entry.uid]
-            decay_num = utils.sample_decay(cur_user['count'])
 
-#            if decay_num > np.random.random():
-#                uw_pairs, uw_labels = utils.user_word_sampler(
-#                    cur_user['uid_encode'],
-#                    params['vocab_size'], set(cur_user['words']), negative_samples=1
-#                )
-#                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
-#                uw_labels = np.array(uw_labels, dtype=np.int32)
+            if mode == 'local':
+                uw_pairs, uw_labels = utils.user_word_sampler(
+                    uid=cur_user['uid_encode'], sequence=encode_doc[0],
+                    vocab_size=params['vocab_size'], filter_words=set(cur_user['words']), 
+                    negative_samples=1
+                )
+                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+                uw_labels = np.array(uw_labels, dtype=np.int32)
+            elif mode == 'decay':
+                decay_num = utils.sample_decay(cur_user['count'])
+                if decay_num > np.random.random():
+                    uw_pairs, uw_labels = utils.user_word_sampler(
+                        uid=cur_user['uid_encode'], sequence=set(cur_user['words']),
+                        vocab_size=params['vocab_size'], negative_samples=1
+                    )
+                    uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+                    uw_labels = np.array(uw_labels, dtype=np.int32)
 
-#                user_info[entry.uid]['count'] += 1
-#                user_control.add(entry.uid)
-#            else:
-#                uw_pairs = None
-#                uw_labels = None
+                    user_info[entry.uid]['count'] += 1
+                    user_control.add(entry.uid)
+                else:
+                    uw_pairs = None
+                    uw_labels = None
 
-#            if len(user_control) >= len(user_info) - 1:
-#                # restart the control for sampling
-#                for uid in user_info:
-#                    user_info[uid]['count'] = 0
-#                user_control.clear()
-            uw_pairs, uw_labels = utils.user_word_sampler(
-                cur_user['uid_encode'], encode_doc[0],
-                params['vocab_size'], set(cur_user['words']), 
-                negative_samples=1
-            )
-            uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
-            uw_labels = np.array(uw_labels, dtype=np.int32)
+                if len(user_control) >= len(user_info) - 10:
+                    # restart the control for sampling
+                    for uid in user_info:
+                        user_info[uid]['count'] = 0
+                    user_control.clear()
+            elif mode == 'global':
+                uw_pairs, uw_labels = utils.user_word_sampler(
+                    uid=cur_user['uid_encode'], sequence=set(cur_user['words']),
+                    vocab_size=params['vocab_size'],
+                    negative_samples=1
+                )
+                uw_pairs = [np.array(x) for x in zip(*uw_pairs)]
+                uw_labels = np.array(uw_labels, dtype=np.int32)
+            else:
+                raise ValueError('Mode {} does not exist!'.format(mode))
 
             '''Train'''
             if word_pairs:
@@ -214,36 +225,37 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
                 print('\tLoss: {}.'.format(loss_avg))
                 print('-------------------------------------------------')
 
-    emb_dir = './resources/skipgrams/'
-    if not os.path.exists(emb_dir):
-        os.mkdir(emb_dir)
-    # save the model
-    emb_dir = emb_dir + dname + '/'
-    if not os.path.exists(emb_dir):
-        os.mkdir(emb_dir)
-    emb_dir = emb_dir + 'word_user/'
-    if not os.path.exists(emb_dir):
-        os.mkdir(emb_dir)
-
 
     # save the model
-    ww_model.save(emb_dir+'ww_model.h5')
-    uw_model.save(emb_dir+'uw_model.h5')
+    ww_model.save(odir+'ww_model.h5')
+    uw_model.save(odir+'uw_model.h5')
     # save the word embedding
-    np.save(emb_dir+'word.npy', ww_model.get_layer(name='word_emb').get_weights()[0])
+    np.save(odir+'word.npy', ww_model.get_layer(name='word_emb').get_weights()[0])
     # save the user embedding
-    np.save(emb_dir+'user.npy', uw_model.get_layer(name='user_emb').get_weights()[0])
+    np.save(odir+'user.npy', uw_model.get_layer(name='user_emb').get_weights()[0])
 
 if __name__ == '__main__':
+    dname = sys.argv[1]
+    # three sampling strategies: local, decay, global
+    if len(sys.argv) > 1:
+        mode = sys.argv[2]
+    else:
+        mode = 'local'
+
     encode_dir = './data/encode/'
     raw_dir = './data/raw/'
-    odir='./resources/skipgrams/'
-
-#    for dname in ['amazon', 'yelp', 'imdb']:
-#        raw_dir = raw_dir + dname + '/'
-#        encode_dir = encode_dir + dname + '/'
-#        main(dname, encode_dir, raw_dir, odir=odir)
-    dname = sys.argv[1]
     raw_dir = raw_dir + dname + '/'
     encode_dir = encode_dir + dname + '/'
-    main(dname, encode_dir, raw_dir, odir=odir)
+
+    odir='./resources/skipgrams/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+    odir = odir + dname + '/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+    odir = odir + 'word_user_{}/'.format(mode)
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+
+    main(dname, encode_dir, raw_dir, odir=odir, mode=mode)
+

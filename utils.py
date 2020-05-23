@@ -33,8 +33,9 @@ def user_word_sampler(uid, sequence, vocab_size, filter_words=None, negative_sam
             wid = random.randint(1, vocab_size-1)
 
             # ensure user did not use the word
-            while wid in filter_words and len(filter_words) <= vocab_size:
-                wid = random.randint(1, vocab_size-1)
+            if filter_words:
+                while wid in filter_words and len(filter_words) <= vocab_size:
+                    wid = random.randint(1, vocab_size-1)
 
             couples.append([uid, wid])
             labels.append(0)
@@ -73,7 +74,7 @@ if __name__ == '__main__':
     # convert trained npy (skipgram models) to tsv for both user and products
     npy_dir = './resources/skipgrams/'
     
-    for dname in ['imdb']: # 'amazon', 'yelp',
+    for dname in ['amazon_health']: # 'amazon', 'yelp', 'amazon_health', 'imdb'
         data_dir = npy_dir + dname + '/'
         user_idx2id_path = './data/raw/' + dname + '/user_idx.json'
         product_idx2id_path = './data/raw/' + dname + '/product_idx.json'

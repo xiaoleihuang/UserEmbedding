@@ -112,31 +112,27 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
                 print('\tLoss: {}.'.format(loss_avg))
                 print('-------------------------------------------------')
 
-    if not os.path.exists(odir):
-        os.mkdir(odir)
-    emb_dir = odir + dname + '/'
-    if not os.path.exists(emb_dir):
-        os.mkdir(emb_dir)
-    emb_dir = emb_dir + 'word/'
-    if not os.path.exists(emb_dir):
-        os.mkdir(emb_dir)
-
     # save the model
-    model.save(emb_dir+'ww_model.h5')
+    model.save(odir+'ww_model.h5')
     # save the word embedding
-    np.save(emb_dir+'word.npy', model.get_layer(name='word_emb').get_weights()[0])
+    np.save(odir+'word.npy', model.get_layer(name='word_emb').get_weights()[0])
 
 
 if __name__ == '__main__':
     encode_dir = './data/encode/'
     raw_dir = './data/raw/'
-    odir='./resources/skipgrams/'
-
-#    for dname in ['amazon', 'yelp', 'imdb']:
-#        raw_dir = raw_dir + dname + '/'
-#        encode_dir = encode_dir + dname + '/'
-#        main(dname, encode_dir, raw_dir, odir=odir)
-    dname = sys.argv[1]
     raw_dir = raw_dir + dname + '/'
     encode_dir = encode_dir + dname + '/'
+
+    odir='./resources/skipgrams/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+    dname = sys.argv[1]
+    odir = odir + dname + '/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+    odir = odir + 'word/'
+    if not os.path.exists(odir):
+        os.mkdir(odir)
+
     main(dname, encode_dir, raw_dir, odir=odir)

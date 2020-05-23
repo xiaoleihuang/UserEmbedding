@@ -112,6 +112,11 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
                 print('\tLoss: {}.'.format(loss_avg))
                 print('-------------------------------------------------')
 
+        # save the model
+        model.save(odir+'ww_model_{}.h5'.format(epoch))
+        # save the word embedding
+        np.save(odir+'word_{}.npy'.format(epoch), model.get_layer(name='word_emb').get_weights()[0])
+
     # save the model
     model.save(odir+'ww_model.h5')
     # save the word embedding

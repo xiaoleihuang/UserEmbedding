@@ -225,6 +225,13 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/', mode='local'
                 print('\tLoss: {}.'.format(loss_avg))
                 print('-------------------------------------------------')
 
+        # save the model
+        ww_model.save(odir+'ww_model_{}.h5'.format(epoch))
+        uw_model.save(odir+'uw_model_{}.h5'.format(epoch))
+        # save the word embedding
+        np.save(odir+'word_{}.npy'.format(epoch), ww_model.get_layer(name='word_emb').get_weights()[0])
+        # save the user embedding
+        np.save(odir+'user_{}.npy'.format(epoch), uw_model.get_layer(name='user_emb').get_weights()[0])
 
     # save the model
     ww_model.save(odir+'ww_model.h5')
@@ -233,6 +240,7 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/', mode='local'
     np.save(odir+'word.npy', ww_model.get_layer(name='word_emb').get_weights()[0])
     # save the user embedding
     np.save(odir+'user.npy', uw_model.get_layer(name='user_emb').get_weights()[0])
+
 
 if __name__ == '__main__':
     dname = sys.argv[1]

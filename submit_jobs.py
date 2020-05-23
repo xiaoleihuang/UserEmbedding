@@ -15,10 +15,11 @@ for task in tasks:
     for dname in dnames:
         if task == 'word':
             script_file = '{0}_{1}.sh'.format(task, dname)
+            script_file = grid_dir + script_file
             print('Running {}'.format(script_file))
             print()
 
-            with open(grid_dir + script_file, 'w') as wfile:
+            with open(script_file, 'w') as wfile:
                 wfile.write('#!/bin/bash\n\n')
                 wfile.write('source ~/.bashrc\n')
                 wfile.write('cd /export/b10/xhuang/xiaolei_data/UserEmbedding/\n')
@@ -26,12 +27,13 @@ for task in tasks:
             command = pattern_str.format(script_file)
             process = subprocess.Popen(command, shell=True)
         else:
-            for mode in modes:
+            for mname in modes:
                 script_file = '{0}_{1}_{2}.sh'.format(task, dname, mname)
+                script_file = grid_dir + script_file
                 print('Running {}'.format(script_file))
                 print()
 
-                with open(grid_dir + script_file, 'w') as wfile:
+                with open(script_file, 'w') as wfile:
                     wfile.write('#!/bin/bash\n\n')
                     wfile.write('source ~/.bashrc\n')
                     wfile.write('cd /export/b10/xhuang/xiaolei_data/UserEmbedding/\n')

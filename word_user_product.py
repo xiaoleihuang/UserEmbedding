@@ -373,6 +373,20 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/', mode='local'
                 print('\tLoss: {}.'.format(loss_avg))
                 print('-------------------------------------------------')
 
+        # save the model
+        ww_model.save(odir+'ww_model_{}.h5'.format(epoch))
+        uw_model.save(odir+'uw_model_{}.h5'.format(epoch))
+        pu_model.save(odir+'pu_model_{}.h5'.format(epoch))
+        pw_model.save(odir+'pw_model_{}.h5'.format(epoch))
+        # save the word embedding
+        np.save(odir+'word_{}.npy'.format(epoch), ww_model.get_layer(name='word_emb').get_weights()[0])
+        # save the user embedding
+        np.save(odir+'user_{}.npy'.format(epoch), uw_model.get_layer(name='user_emb').get_weights()[0])
+        # save the product embedding
+        np.save(
+            odir+'product_{}.npy'.format(epoch), 
+            pu_model.get_layer(name='product_emb').get_weights()[0]
+        )
 
     # save the model
     ww_model.save(odir+'ww_model.h5')

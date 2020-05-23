@@ -4,8 +4,8 @@ import time
 import sys
 
 mode = sys.argv[1]
-tasks = ['imdb', 'yelp', 'amazon']
-mnames = ['lda', 'word2vec', 'doc2vec'] # 'bert'
+tasks = ['amazon_health'] # 'imdb', 'yelp', 'amazon', 'amazon_health'
+mnames = ['bert'] # 'lda', 'word2vec', 'doc2vec', 'bert'
 
 if mode == 'cpu':
     pattern_str = "qsub -l 'hostname=b*|c*,cpu=12,num_proc=12,mem_free=16g,ram_free=16g' -now no -cwd -o ./logs/ -e ./logs/ -q all.q {}"
@@ -32,5 +32,4 @@ for task in tasks:
         print()
         time.sleep(3) # to avoid assign in the same machine
         process = subprocess.Popen(command, shell=True)
-    
-time.sleep(3)
+

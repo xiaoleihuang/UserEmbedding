@@ -10,7 +10,7 @@ import time
 if not os.path.exists('./logs/'):
     os.mkdir('./logs/')
 
-tasks = ['imdb', 'yelp', 'amazon']
+tasks = ['amazon_health'] # 'imdb', 'yelp', 'amazon', 'amazon_health'
 baselines = ['bert2vec'] # , 'doc2user', 'lda2user', 'word2user'
 pattern_str = "qsub -l 'hostname=b*|c*,cpu=10,num_proc=10,mem_free=16g,ram_free=16g' -now no -cwd -o ./logs/ -e ./logs/ -q all.q {}"
 

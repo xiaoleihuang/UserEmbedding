@@ -395,7 +395,7 @@ def extract_amazon(data_dir, save_dir='./raw/amazon/'):
     '''Filter out the product and user less than the require number'''
     print('Filter user and sample products')
     for uid in list(users_info):
-        if users_info[entity['reviewerID']]['review_count'] < 10:
+        if users_info[uid]['review_count'] < 10:
             del users_info[uid]
 
     max_count = dict()
@@ -793,6 +793,8 @@ def encode_data(data_dir, dname, multi_genre=False, save_dir='./encode/'):
     for idx, genre in enumerate(genres):
         genre_encoder[genre] = str(idx)
 
+    print(genres)
+
     with open(save_dir + 'genre_encoder.json', 'w') as wfile:
         wfile.write(json.dumps(genre_encoder))
 
@@ -867,11 +869,267 @@ def encode_data(data_dir, dname, multi_genre=False, save_dir='./encode/'):
     data_splits(corpus, save_dir)
 
 
+def extract_amazon_health(indir, save_dir):
+    '''Extract Amazon Healthcare Reviews'''
+    fname = 'Health_and_Personal_Care_5.json'
+    meta_fname = 'meta_' + fname
+
+    '''find the top 4 categories'''
+    # load bid2genre
+#    bid2genre = dict()
+#    with open(indir + meta_fname) as dfile:
+#        for line in dfile:
+#            entity = json.loads(line)
+#            if 'asin' not in entity:
+#                continue
+
+#            if 'categories' not in entity or len(entity['categories']) == 0 \
+#                or len(entity['categories'][0]) == 0:
+#                continue
+
+#            for genre in entity['categories'][0]:
+#                if genre not in bid2genre:
+#                    bid2genre[genre.strip()] = set()
+#                bid2genre[genre.strip()].add(entity['asin'])
+                
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    
+    # define genre names, genre value must match file name
+    products_info = dict()
+    products_filters = {
+        'Vitamins & Dietary Supplements': set(),
+        'Sexual Wellness': set(),
+        'Shaving & Hair Removal': set(),
+        'Sports Nutrition': set()
+    }
+    users_info = dict()
+    top_tokens = Counter()
+
+    '''Collect bids to filters'''
+    with open(indir + meta_fname) as dfile:
+        for line in dfile:
+            entity = json.loads(line)
+            if 'asin' not in entity:
+                continue
+            if 'categories' not in entity or len(entity['categories']) == 0 \
+                or len(entity['categories'][0]) == 0:
+                continue
+
+            for genre in entity['categories'][0]:
+                if genre in products_filters:
+                    products_filters[genre].add(entity['asin'])
+
+    # sample
+#    min_val = min([len(item) for item in products_filters])
+#    for genre in products_filters:
+#        if len(products_filters[genre]) == min_val:
+#            continue
+#        products_filters[genre] = set(np.random.choice(list(products_filters[genre]), size=min_val))
+
+    '''Collect Product and User information'''
+    print('Collecting product and user information in each genre...')
+    print('Working on: ', indir+fname)
+    rids = set()
+    with open(indir+fname) as dfile:
+        for line in dfile:
+            entity = json.loads(line.strip())
+
+            # check uid, bid, review text
+            if len(entity['reviewText']) < 10:
+                continue
+            if len(entity['reviewerID']) < 3:
+                continue
+            if len(entity['asin']) < 3:
+                continue
+
+            genres = []
+            for genre in products_filters:
+                if entity['asin'] in products_filters[genre]:
+                    genres.append(genre)
+            if len(genres) == 0:
+                continue
+
+            entity['reviewText'] = preprocess(entity['reviewText'], min_len=10)
+            if not entity['reviewText']:
+                continue
+
+            # count tokens
+            for token in entity['reviewText'].split():
+                if not token.isalpha():
+                    continue
+                top_tokens[token] += 1
+
+            # User info
+            if entity['reviewerID'] not in users_info:
+                users_info[entity['reviewerID']] = dict()
+                users_info[entity['reviewerID']]['review_count'] = 0
+                users_info[entity['reviewerID']]['words'] = set()
+                users_info[entity['reviewerID']]['bids'] = set()
+            users_info[entity['reviewerID']]['review_count'] += 1
+
+            # Product info
+            if entity['asin'] not in products_info:
+                products_info[entity['asin']] = dict()
+                products_info[entity['asin']]['star'] = entity['overall']
+                products_info[entity['asin']]['review_count'] = 1
+                products_info[entity['asin']]['words'] = set()
+                products_info[entity['asin']]['uids'] = set()
+                products_info[entity['asin']]['genre'] = genres
+            else:
+                products_info[entity['asin']]['star'] = \
+                    products_info[entity['asin']]['star'] * \
+                    products_info[entity['asin']]['review_count'] + \
+                    entity['overall']
+                products_info[entity['asin']]['review_count'] += 1
+                products_info[entity['asin']]['star'] /= \
+                    products_info[entity['asin']]['review_count']
+
+    top_tokens = dict(
+        top_tokens.most_common(15) # top 10 frequentist tokens (letter only)
+    )
+
+    '''Filter out the product and user less than the require number'''
+    print('Filter user and sample products')
+    for uid in list(users_info):
+        if users_info[uid]['review_count'] < 5:
+            del users_info[uid]
+
+    max_count = dict()
+    for bid in list(products_info):
+        if products_info[bid]['review_count'] < 10:
+            del products_info[bid]
+            continue
+
+        for genre in products_info[bid]['genre']:
+            if genre not in max_count:
+                max_count[genre] = 0
+
+            if products_info[bid]['review_count'] > max_count[genre]:
+                max_count[genre] = products_info[bid]['review_count']
+
+    for bid in products_info:
+        products_info[bid]['popularity'] = rank_bid(
+            products_info[bid]['review_count'], 
+            products_info[bid]['star'], 
+            max_count[genre], 5.0
+        )
+
+    '''Build the review'''
+    print('Building review data...')
+    # review file
+    rfile = open(save_dir+'amazon_health.tsv', 'w')
+    columns = ['rid', 'bid', 'uid', 'text', 'date', 'genre', 'label']
+    rfile.write('\t'.join(columns)+'\n')
+    
+    with open(indir+fname) as dfile:
+        for line in dfile:
+            entity = json.loads(line)
+
+            '''Filters'''
+            # user control
+            if entity['reviewerID'] not in users_info:
+                continue
+            
+            # filter out the categories
+            if entity['asin'] not in products_info:
+                continue
+
+            # filter out text less than 10 tokens
+            entity['reviewText'] = preprocess(
+                entity['reviewText'], min_len=10)
+            if not entity['reviewText']:
+                continue
+
+            '''Data collection'''
+            # encode labels
+            if entity['overall'] > 3:
+                entity['overall'] = 2
+            elif entity['overall'] < 3:
+                entity['overall'] = 0
+            else:
+                entity['overall'] = 1
+
+            # collect review data
+            line = '\t'.join([
+                entity['reviewerID']+'#'+str(entity['unixReviewTime']), entity['asin'],
+                entity['reviewerID'], entity['reviewText'], format_time(entity['reviewTime']), 
+                ','.join(products_info[entity['asin']]['genre']), str(entity['overall'])
+            ])
+            rfile.write(line + '\n')
+
+            # collect words for both products and users
+            for token in entity['reviewText'].split():
+                if not token.isalpha():
+                    continue
+
+                if token in top_tokens:
+                    continue
+
+                products_info[entity['asin']]['words'].add(token)
+                users_info[entity['reviewerID']]['words'].add(token)
+
+            # collect purchasing behaviors
+            products_info[entity['asin']]['uids'].add(entity['reviewerID'])
+            users_info[entity['reviewerID']]['bids'].add(entity['asin'])
+
+    rfile.flush()
+    rfile.close()
+
+    '''save user and product information'''
+    print('Saving user information...')
+    user_idx = list() 
+    product_idx = list()
+    with open(save_dir + 'users.json', 'w') as wfile:
+        for uid in users_info:
+            if len(users_info[uid]['words']) == 0:
+                continue
+
+            users_info[uid]['uid'] = uid
+            users_info[uid]['words'] = list(users_info[uid]['words'])
+            users_info[uid]['bids'] = list(users_info[uid]['bids'])
+
+            wfile.write(json.dumps(users_info[uid]) + '\n')
+            heapq.heappush(user_idx, (users_info[uid]['review_count'], uid))
+    user_idx_encoder = dict() # a dictionary for user idx mapping 
+    init_idx = len(user_idx) # 0 is the reserved idx for unknown
+    while init_idx > 0:
+        item = heapq.heappop(user_idx)
+        user_idx_encoder[item[1]] = init_idx
+        init_idx -= 1
+    with open(save_dir + 'user_idx.json', 'w') as wfile:
+        wfile.write(json.dumps(user_idx_encoder))
+
+    print('Saving product information...')
+    with open(save_dir + 'products.json', 'w') as wfile:
+        for bid in products_info:
+            if len(products_info[bid]['words']) == 0:
+                continue
+
+            products_info[bid]['bid'] = bid
+            products_info[bid]['words'] = list(products_info[bid]['words'])
+            products_info[bid]['uids'] = list(products_info[bid]['uids'])
+            wfile.write(json.dumps(products_info[bid]) + '\n')
+            heapq.heappush(product_idx, (products_info[bid]['popularity'], bid))
+    product_idx_encoder = dict() # a dictionary for product idx mapping 
+    init_idx = len(product_idx) # 0 is the reserved idx for unknown
+    while init_idx > 0:
+        item = heapq.heappop(product_idx)
+        product_idx_encoder[item[1]] = init_idx
+        init_idx -= 1
+    with open(save_dir + 'product_idx.json', 'w') as wfile:
+        wfile.write(json.dumps(product_idx_encoder))
+
+
 if __name__ == '__main__':
 #    extract_yelp('/home/xiaolei/Documents/dataset/yelp/', save_dir='./raw/yelp/')
-    encode_data('./raw/yelp/', 'yelp', save_dir='./encode/')
+#    encode_data('./raw/yelp/', 'yelp', save_dir='./encode/')
 #    extract_amazon('/home/xiaolei/Documents/dataset/amazon/', save_dir='./raw/amazon/')
-    encode_data('./raw/amazon/', 'amazon', save_dir='./encode/')
+#    encode_data('./raw/amazon/', 'amazon', save_dir='./encode/')
 #    extract_imdb('/home/xiaolei/Documents/dataset/imdb/crawl/', save_dir='./raw/imdb/')
-    encode_data('./raw/imdb/', 'imdb', multi_genre=True, save_dir='./encode/')
+#    encode_data('./raw/imdb/', 'imdb', multi_genre=True, save_dir='./encode/')
+
+    extract_amazon_health('/home/xiaolei/Documents/dataset/amazon/', save_dir='./raw/amazon_health/')
+    encode_data('./raw/amazon_health/', 'amazon_health', multi_genre=True, save_dir='./encode/')
+    pass
 

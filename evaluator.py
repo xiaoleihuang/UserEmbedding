@@ -340,6 +340,7 @@ if __name__ == '__main__':
     dname = sys.argv[1] # 'yelp', 'amazon', 'imdb', 'amazon_health'
     mode = sys.argv[2] # 'word2user', 'doc2user', 'lda2user', 'bert2user', 'skipgrams'
     cluster_num = int(sys.argv[3]) # 4, 8, 12
+    sample_mode = sys.argv[4] if len(sys.argv) > 4 else 'global'  # global, local, decay
 
     print('System Arguments: ', ', '.join(sys.argv))
 
@@ -355,7 +356,7 @@ if __name__ == '__main__':
 
         if mode == 'skipgrams':
             my_dir = resource_dir + mode + '/'
-            task = 'word_user_product' # word_user, word_user_product
+            task = 'word_user_product{}'.format(sample_mode) # word_user, word_user_product
             my_emb_dir = my_dir + dname + '/' + task + '/'
 
             # evaluate product embeddings by separation
@@ -370,7 +371,7 @@ if __name__ == '__main__':
             eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
 
             # evaluate user embeddings by MAP@K, for task 2 (word_user)
-            task = 'word_user'
+            task = 'word_user{}'.format(sample_mode)
             my_emb_dir = my_dir + dname + '/' + task + '/'
 
             print('User Evaluation -------- Cluster: ', task)

@@ -11,8 +11,9 @@ def sample_decay(count, decay=2):
     '''
     return 1 / (1 + decay * count)
 
+
 def user_word_sampler(uid, sequence, vocab_size, filter_words=None, negative_samples=1):
-    '''This function was adopted from https://github.com/keras-team/keras-preprocessing/blob/master/keras_preprocessing/sequence.py#L151
+    '''This function was partially adopted from https://github.com/keras-team/keras-preprocessing/blob/master/keras_preprocessing/sequence.py#L151
 
         uid (int): a user id index
         sequence (list): a sequence of word indices

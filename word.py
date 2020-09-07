@@ -124,6 +124,7 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/'):
 
 
 if __name__ == '__main__':
+    dname = sys.argv[1]
     encode_dir = './data/encode/'
     raw_dir = './data/raw/'
     raw_dir = raw_dir + dname + '/'
@@ -132,7 +133,7 @@ if __name__ == '__main__':
     odir='./resources/skipgrams/'
     if not os.path.exists(odir):
         os.mkdir(odir)
-    dname = sys.argv[1]
+
     odir = odir + dname + '/'
     if not os.path.exists(odir):
         os.mkdir(odir)

@@ -356,7 +356,7 @@ if __name__ == '__main__':
 
         if mode == 'skipgrams':
             my_dir = resource_dir + mode + '/'
-            task = 'word_user_product{}'.format(sample_mode) # word_user, word_user_product
+            task = 'word_user_product_{}'.format(sample_mode) # word_user, word_user_product
             my_emb_dir = my_dir + dname + '/' + task + '/'
 
             # evaluate product embeddings by separation
@@ -371,7 +371,7 @@ if __name__ == '__main__':
             eval_user_cluster(user_emb_pair, user_dict, cluster_num=cluster_num, opt=None)
 
             # evaluate user embeddings by MAP@K, for task 2 (word_user)
-            task = 'word_user{}'.format(sample_mode)
+            task = 'word_user_{}'.format(sample_mode)
             my_emb_dir = my_dir + dname + '/' + task + '/'
 
             print('User Evaluation -------- Cluster: ', task)

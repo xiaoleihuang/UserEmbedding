@@ -140,3 +140,5 @@ dmypy.json
 /baselines/logs/
 /*.sh
 /resources/baselines_full_vocab/
+# pycharm files
+/.idea

@@ -3,10 +3,9 @@ import subprocess
 import time
 import sys
 
-dnames = ['amazon_health'] # 'amazon', 'yelp' , 'imdb', 'amazon_health'
-modes = {'word2user', 'doc2user', 'lda2user'} # 'skipgrams', 'word2user', 'doc2user', 'lda2user', 'bert2user'
+dnames = ['yelp' , 'imdb', 'amazon_health'] # 'amazon', 'yelp' , 'imdb', 'amazon_health'
+modes = {'skipgrams'} # 'skipgrams', 'word2user', 'doc2user', 'lda2user', 'bert2user'
 cluster_nums = [4, 8, 12]
-sample_modes = ['global', 'decay', 'local']
 
 if not os.path.exists('./grid_scripts/'):
     os.mkdir('./grid_scripts/')
@@ -19,6 +18,11 @@ for dname in dnames:
 
     for mode in modes:
         for cluster_num in cluster_nums:
+            if mode != 'skipgrams':
+                sample_modes = ['']
+            else:
+                sample_modes = ['global', 'decay', 'local']
+
             for s_mode in sample_modes:
                 script_file = './grid_scripts/evaluator_{}_{}_{}_{}.sh'.format(
                     dname, mode, cluster_num, s_mode

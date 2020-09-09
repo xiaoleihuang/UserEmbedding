@@ -3,7 +3,7 @@ import subprocess
 import time
 import sys
 
-dnames = ['amazon_health'] # 'amazon', 'yelp' , 'imdb', 'amazon_health'
+dnames = ['yelp' , 'imdb', 'amazon_health'] # 'amazon', 'yelp' , 'imdb', 'amazon_health'
 modes = {'skipgrams'} # 'skipgrams', 'word2user', 'doc2user', 'lda2user', 'bert2user'
 cluster_nums = [4, 8, 12]
 sample_modes = ['global', 'decay', 'local']

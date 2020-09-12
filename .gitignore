@@ -140,5 +140,8 @@ dmypy.json
 /baselines/logs/
 /*.sh
 /resources/baselines_full_vocab/
+/personalize/results/
+/personalize/vects/
+/personalize/clfs/
 # pycharm files
 /.idea

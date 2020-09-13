@@ -1,5 +1,6 @@
 import os
 from collections import Counter
+import json
 
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
@@ -84,12 +85,11 @@ def run_bert(params):
         doc_df.text = doc_df.text.apply(lambda x: tokenizer.tokenize(x))
 
     # convert to indices and pad the sequences
-    max_len = 25
     for doc_df in data_df:
         doc_df.text = doc_df.text.apply(
             lambda x: pad_sequences(
                 [tokenizer.convert_tokens_to_ids(x)],
-                maxlen=max_len, dtype="long"
+                maxlen=params['max_len'], dtype="long"
             )[0])
 
     # create attention masks
@@ -280,15 +280,21 @@ if __name__ == '__main__':
     parameters['lr'] = 2e-5
     parameters['warm_steps'] = 100
     parameters['train_steps'] = 1000
-    parameters['batch_size'] = 64
+    parameters['batch_size'] = 16
     parameters['balance'] = True
     parameters['num_label'] = 3
     parameters['epochs'] = 6
+
+    # load data stats to determine the max length
+    try:
+        stats = json.load(open('../analysis/stats.json'))
+    except FileNotFoundError:
+        stats = None
 
     for dname in data_list:
         parameters['data_name'] = dname
         data_dir = '../data/raw/' + dname + '/'
         parameters['data_dir'] = data_dir
+        parameters['max_len'] = int(stats[dname].get('75_percent_word_per_doc', 200))
 
         run_bert(parameters)
-

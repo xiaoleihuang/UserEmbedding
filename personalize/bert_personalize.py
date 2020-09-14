@@ -152,7 +152,7 @@ def run_bert(params):
         optimizer, num_warmup_steps=params['warm_steps'],
         num_training_steps=params['train_steps']
     )
-    wfile = open('./results/bert_results.txt', 'a')
+    wfile = open('./results/bert_personalize_results.txt', 'a')
     wfile.write(params['data_name'] + '_________________\n')
 
     # Training
@@ -268,8 +268,8 @@ if __name__ == '__main__':
         os.mkdir('./results/')
 
     data_list = [
-        # 'imdb',
-        # 'yelp',
+        'imdb',
+        'yelp',
         'amazon_health',
     ]
 
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     parameters['lr'] = 2e-5
     parameters['warm_steps'] = 100
     parameters['train_steps'] = 1000
-    parameters['batch_size'] = 16
+    parameters['batch_size'] = 64
     parameters['balance'] = True
     parameters['num_label'] = 3
     parameters['epochs'] = 6
@@ -296,5 +296,6 @@ if __name__ == '__main__':
         data_dir = '../data/raw/' + dname + '/'
         parameters['data_dir'] = data_dir
         parameters['max_len'] = int(stats[dname].get('75_percent_word_per_doc', 200))
+        parameters['up_dir'] = '../resources/skipgrams/' + dname + '/word_user_product/'
 
         run_bert(parameters)

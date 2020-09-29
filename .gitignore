@@ -140,6 +140,7 @@ dmypy.json
 /baselines/logs/
 /*.sh
 /resources/baselines_full_vocab/
+/resources/embedding_vocab/
 /personalize/results/
 /personalize/vects/
 /personalize/clfs/

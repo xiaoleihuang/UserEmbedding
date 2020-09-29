@@ -862,7 +862,7 @@ def encode_data(data_dir, dname, multi_genre=False, save_dir='./encode/'):
                     entity['genre'] = genre_encode
                 else:
                     entity['genre'] = genre_encoder[entity['genre']]
-                # encode the uid
+                # encode the bid
                 entity['bid_encode'] = product_idx[entity['bid']]
                 wfile.write(json.dumps(entity)+'\n')
     # save the split raw corpus

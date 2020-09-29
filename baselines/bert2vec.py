@@ -6,7 +6,7 @@ import sys
 
 import numpy as np
 import torch
-torch.set_num_threads(15)
+torch.set_num_threads(os.cpu_count())
 from transformers import BertTokenizer, BertConfig, BertModel
 from transformers import BertForSequenceClassification
 

@@ -269,8 +269,8 @@ if __name__ == '__main__':
 
     data_list = [
         # 'imdb',
-        # 'yelp',
-        'amazon_health',
+        'yelp',
+        # 'amazon_health',
     ]
 
     parameters = dict()

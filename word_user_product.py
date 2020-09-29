@@ -12,8 +12,8 @@ import pandas as pd
 
 import utils
 
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # for Tensorflow cpu usage
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # for Tensorflow cpu usage
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
 # design model
@@ -367,7 +367,7 @@ def main(dname, encode_dir, raw_dir, odir='./resources/skipgrams/', mode='local'
             if pw_pairs:
                 loss += pw_model.train_on_batch(pw_pairs, pw_labels)
 
-            loss_avg = loss / step
+            loss_avg = loss / (step + 1)
             if step % 100 == 0:
                 print('Epoch: {}, Step: {}'.format(epoch, step))
                 print('\tLoss: {}.'.format(loss_avg))

@@ -159,13 +159,13 @@ if __name__ == '__main__':
         os.mkdir('./results/')
 
     data_list = [
-        # 'imdb',
+        'imdb',
         'yelp',
-        # 'amazon_health',
+        'amazon_health',
     ]
 
     for dname in data_list:
         train_raw_path = '../data/raw/' + dname + '/train.tsv'
         test_raw_path = '../data/raw/' + dname + '/test.tsv'
-        up_dir = '../resources/skipgrams/' + dname + '/word_user_product/'
+        up_dir = '../resources/skipgrams/' + dname + '/word_user/'
         run_lr_3gram(dname, train_raw_path, test_raw_path, up_dir)

@@ -4,7 +4,7 @@ import pickle
 
 from keras.layers import GRU, Bidirectional
 from keras.layers import Input, Embedding, Dense
-from keras.layers import Dropout
+from keras.layers import Dropout, Concatenate, Add, RepeatVector, LayerNormalization
 from keras.models import Model
 from keras.preprocessing.sequence import pad_sequences
 import keras
@@ -13,12 +13,31 @@ from sklearn.metrics import f1_score, classification_report
 from sklearn.utils import class_weight
 import numpy as np
 import gensim
-# from imblearn.over_sampling import RandomOverSampler
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # for CPU-use only
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # for CPU-use only
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
-def data_iter(docs, labels, batch_size=32, sample_weight=None):
+def data_iter(**kwargs):
+    docs = kwargs['docs']
+    labels = kwargs['labels']
+    batch_size = kwargs.get('batch_size', 32)
+    sample_weight = kwargs.get('sample_weight', None)
+    products = kwargs.get('products', None)
+    users = kwargs.get('users', None)
+
+    # shuffle the data
+    data_indices = list(range(len(docs)))
+    np.random.shuffle(data_indices)
+    labels = [labels[item] for item in data_indices]
+    docs = [docs[item] for item in data_indices]
+    if sample_weight is not None:
+        sample_weight = [sample_weight[item] for item in data_indices]
+    if users is not None:
+        users = [users[item] for item in data_indices]
+    if products is not None:
+        products = [products[item] for item in data_indices]
+
     steps = int(len(docs) / batch_size)
     if len(docs) % batch_size != 0:
         steps += 1
@@ -28,25 +47,40 @@ def data_iter(docs, labels, batch_size=32, sample_weight=None):
         batch_label = np.asarray(labels[idx * batch_size: (idx + 1) * batch_size])
         if sample_weight is not None:
             batch_weight = np.asarray(sample_weight[idx * batch_size: (idx + 1) * batch_size])
-            yield batch_data, batch_label, batch_weight
         else:
-            yield batch_data, batch_label
+            batch_weight = []
+        if users is not None:
+            batch_user = np.asarray(users[idx * batch_size: (idx + 1) * batch_size])
+        else:
+            batch_user = []
+        if products is not None:
+            batch_product = np.asarray(products[idx * batch_size: (idx + 1) * batch_size])
+        else:
+            batch_product = []
+
+        yield batch_data, batch_label, batch_weight, batch_user, batch_product
 
 
 def load_data(filename, max_len, tkn_path, train=True, do_balance=False):
     labels = []
     docs = []
+    users = []
+    products = []
 
     with open(filename) as dfile:
         cols = dfile.readline()  # skip the 1st column names
         cols = cols.strip().split('\t')
         doc_idx = cols.index('text')  # document index
         label_idx = cols.index('label')  # label index
+        user_idx = cols.index('uid')
+        product_idx = cols.index('bid')
 
         for line in dfile:
             infos = line.strip().split('\t')
             labels.append(int(infos[label_idx]))
             docs.append(infos[doc_idx].split())
+            users.append(int(infos[user_idx]))
+            products.append(int(infos[product_idx]))
 
     # tokenize and padding the documents
     tkn = pickle.load(open(tkn_path, 'rb'))
@@ -71,9 +105,9 @@ def load_data(filename, max_len, tkn_path, train=True, do_balance=False):
                 'balanced', labels
             )
 
-        return docs, labels, sample_weight
+        return docs, labels, sample_weight, users, products
     else:
-        return docs, labels
+        return docs, labels, users, products
 
 
 def build_wt(filep='', opt='embd.npy', tkn_path=''):
@@ -122,6 +156,26 @@ def run_bilstm(data_name, params):
     """ input > embedding > Bi-LSTM > dense > dropout > sigmoid
     """
     print('Working on: ' + data_name)
+    # suffix of output files
+    output_suffix = '_'
+
+    # load the user and product embeddings
+    uemb_path = os.path.join(params['up_dir'], 'user.npy')
+    if params['use_uemb'] and os.path.exists(uemb_path):
+        print('Loading user embedding...: ', uemb_path)
+        output_suffix += 'u'
+        user_emb = np.load(uemb_path)
+    else:
+        user_emb = None
+
+    pemb_path = os.path.join(params['up_dir'], 'product.npy')
+    if params['use_pemb'] and os.path.exists(pemb_path):
+        print('Loading product embedding...: ', pemb_path)
+        output_suffix += 'p'
+        product_emb = np.load(pemb_path)
+    else:
+        product_emb = None
+
     # load w2v weights for the Embedding
     weights = build_wt(
         params['emb_dir'] + data_name + '/w2v.txt',
@@ -129,7 +183,7 @@ def run_bilstm(data_name, params):
         params['encode_dir'] + data_name + '/{}.tkn'.format(data_name)
     )
 
-    text_input = Input(shape=(params['max_len'],), dtype='int32')
+    text_input = Input(shape=(params['max_len'],), dtype='int32', name='text_input')
     embed = Embedding(
         weights.shape[0], weights.shape[1],  # size of data embedding
         weights=[weights], input_length=params['max_len'],
@@ -137,28 +191,60 @@ def run_bilstm(data_name, params):
         name='embedding')(text_input)
 
     bilstm = Bidirectional(GRU(
-        weights.shape[1],
+        weights.shape[1]//2,
         kernel_initializer="glorot_uniform",
         # kernel_regularizer=keras.regularizers.l1_l2(0, 0.0001),
         dropout=params['dp_rate'],
         # recurrent_activation='tanh',
     ))(embed)
 
+    # concatenate user, product and the text
+    # user and product embeddings
+    if user_emb is not None:
+        user_input = Input(shape=(1,), dtype='int32', name='user_input')
+        user_emb_layer = Embedding(
+            user_emb.shape[0], user_emb.shape[1], weights=[user_emb],
+            input_length=1, trainable=True, name='user_emb'
+        )(user_input)
+        user_emb_layer = keras.layers.Lambda(lambda x: x[:, 0, :])(user_emb_layer)
+        bilstm = Add(name='merge_u')([bilstm, user_emb_layer])
+    else:
+        user_input = None
+
+    if product_emb is not None:
+        product_input = Input(shape=(1,), dtype='int32', name='product_input')
+        product_emb_layer = Embedding(
+            product_emb.shape[0], product_emb.shape[1], weights=[product_emb],
+            input_length=1, trainable=True, name='product_emb'
+        )(product_input)
+        product_emb_layer = keras.layers.Lambda(lambda x: x[:, 0, :])(product_emb_layer)
+        bilstm = Add(name='merge_p')([bilstm, product_emb_layer])
+    else:
+        product_input = None
+
     # dense
-    dense_l = Dense(params['hidden_num'], activation='relu')(bilstm)
+    # bilstm = LayerNormalization()(bilstm)
+    dense_l = Dense(params['hidden_num'], activation='relu', name='dense_l')(bilstm)
     dp_l = Dropout(params['dp_rate'])(dense_l)
 
     # output
-    pred_l = Dense(params['num_class'], activation='softmax')(dp_l)
-    model = Model(inputs=text_input, outputs=pred_l)
+    pred_l = Dense(params['num_class'], activation='softmax', name='prediction')(dp_l)
+    if user_input is None:
+        model = Model(inputs=text_input, outputs=pred_l)
+    if user_input is None and product_input is not None:
+        model = Model(inputs=[text_input, product_input], outputs=pred_l)
+    if user_input is not None and product_input is None:
+        model = Model(inputs=[text_input, user_input], outputs=pred_l)
+    if user_input is not None and product_input is not None:
+        model = Model(inputs=[text_input, user_input, product_input], outputs=pred_l)
 
     # compile model
     if params['optimizer'] == 'rmsprop':
-        optimizer = keras.optimizers.RMSprop(learning_rate=0.0001)
+        optimizer = keras.optimizers.RMSprop(learning_rate=params['lr_rate'])
     elif params['optimizer'] == 'adam':
-        optimizer = keras.optimizers.Adam(learning_rate=0.0001)
+        optimizer = keras.optimizers.Adam(learning_rate=params['lr_rate'])
     else:
-        optimizer = keras.optimizers.SGD(learning_rate=0.0001)
+        optimizer = keras.optimizers.SGD(learning_rate=params['lr_rate'])
 
     if params['num_class'] > 2:
         model.compile(
@@ -173,13 +259,13 @@ def run_bilstm(data_name, params):
 
     # fit the model
     train_path = params['data_dir'] + data_name + '/train.tsv'
-    train_docs, train_labels, sample_weight = load_data(
+    train_data = load_data(
         train_path, params['max_len'],
         params['encode_dir'] + data_name + '/{}.tkn'.format(data_name),
         train=True, do_balance=params['balance_data']
     )
     valid_path = params['data_dir'] + data_name + '/valid.tsv'
-    valid_docs, valid_labels = load_data(
+    valid_data = load_data(
         valid_path, params['max_len'],
         params['encode_dir'] + data_name + '/{}.tkn'.format(data_name),
         train=False
@@ -192,28 +278,37 @@ def run_bilstm(data_name, params):
         step = 1
 
         print('--------------Epoch: {}--------------'.format(e))
-        train_iter = data_iter(train_docs, train_labels, params['batch_size'], sample_weight)
+        train_docs, train_labels, sample_weight, train_users, train_products = train_data
+        train_iter = data_iter(
+            docs=train_docs, labels=train_labels, sample_weight=sample_weight,
+            batch_size=params['batch_size'], users=train_users, products=train_products
+        )
 
         # train on batches
         for train_batch in train_iter:
-            if sample_weight:
-                x_train, y_train, batch_weight = train_batch
-            else:
-                x_train, y_train = train_batch
-                batch_weight = None
+            batch_data, batch_label, batch_weight, batch_user, batch_product = train_batch
             # skip only 1 class in the training data
-            if len(np.unique(y_train)) == 1:
+            if len(np.unique(batch_label)) == 1:
                 continue
 
+            x = dict()
+            x['text_input'] = batch_data
+            if user_emb is not None:
+                x['user_input'] = batch_user
+            if product_emb is not None:
+                x['product_input'] = batch_product
+
             # train sentiment model
-            if batch_weight:
+            if batch_weight is not None and len(batch_weight) > 0:
                 tmp_senti = model.train_on_batch(
-                    x_train, y_train,
+                    x=x if len(x) > 1 else batch_data,
+                    y=batch_label,
                     sample_weight=batch_weight
                 )
             else:
                 tmp_senti = model.train_on_batch(
-                    x_train, y_train
+                    x=x if len(x) > 1 else batch_data,
+                    y=batch_label,
                 )
             # calculate loss and accuracy
             loss += tmp_senti[0]
@@ -230,16 +325,27 @@ def run_bilstm(data_name, params):
 
         # each epoch try the valid data, get the best valid-weighted-f1 score
         print('Validating....................................................')
-        valid_iter = data_iter(valid_docs, valid_labels, params['batch_size'])
+        valid_docs, valid_labels, valid_users, valid_products = valid_data
+        valid_iter = data_iter(
+            docs=valid_docs, labels=valid_labels, batch_size=params['batch_size'],
+            users=valid_users, products=valid_products
+        )
 
         y_preds_valids = []
         y_valids = []
-        for x_valid, y_valid in valid_iter:
-            x_valid = np.asarray(x_valid)
-            tmp_preds_valid = model.predict(x_valid)
+        for valid_batch in valid_iter:
+            batch_data, batch_label, batch_weight, batch_user, batch_product = valid_batch
+            x_valid = dict()
+            x_valid['text_input'] = batch_data
+            if user_emb is not None:
+                x_valid['user_input'] = batch_user
+            if product_emb is not None:
+                x_valid['product_input'] = batch_product
+
+            tmp_preds_valid = model.predict(x_valid if len(x_valid) > 1 else batch_data)
             for item_tmp in tmp_preds_valid:
                 y_preds_valids.append(item_tmp)
-            for item_tmp in y_valid:
+            for item_tmp in batch_label:
                 y_valids.append(int(item_tmp))
 
         if len(y_preds_valids[0]) > 2:
@@ -252,21 +358,32 @@ def run_bilstm(data_name, params):
         # if the validation f1 score is good, then test
         if f1_valid > best_valid_f1:
             best_valid_f1 = f1_valid
-            test_docs, test_labels = load_data(
+            test_data = load_data(
                 test_path, params['max_len'],
                 params['encode_dir'] + data_name + '/{}.tkn'.format(data_name),
                 train=False
             )
-            test_iter = data_iter(test_docs, test_labels, params['batch_size'])
+            test_docs, test_labels, test_users, test_products = test_data
+            test_iter = data_iter(
+                docs=test_docs, labels=test_labels, batch_size=params['batch_size'],
+                users=test_users, products=test_products
+            )
 
             y_preds = []
             y_tests = []
-            for x_test, y_test in test_iter:
-                x_test = np.asarray(x_test)
-                tmp_preds = model.predict(x_test)
+            for test_batch in test_iter:
+                batch_data, batch_label, batch_weight, batch_user, batch_product = test_batch
+                x_test = dict()
+                x_test['text_input'] = batch_data
+                if user_emb is not None:
+                    x_test['user_input'] = batch_user
+                if product_emb is not None:
+                    x_test['product_input'] = batch_product
+
+                tmp_preds = model.predict(x_test if len(x_test) > 1 else batch_data)
                 for item_tmp in tmp_preds:
                     y_preds.append(item_tmp)
-                for item_tmp in y_test:
+                for item_tmp in batch_label:
                     y_tests.append(int(item_tmp))
 
             if len(y_preds[0]) > 2:
@@ -274,8 +391,9 @@ def run_bilstm(data_name, params):
             else:
                 y_preds = [np.round(item[0]) for item in y_preds]
 
-            test_result = open('./results/bilstm_results.txt', 'a')
+            test_result = open('./results/bilstm_personalize_add{}_results.txt'.format(output_suffix), 'a')
             test_result.write(data_name + '\n')
+            test_result.write(json.dumps(params) + '\n')
             test_result.write('Epoch ' + str(e) + '..................................................\n')
             test_result.write(str(f1_score(y_true=y_tests, y_pred=y_preds, average='weighted')) + '\n')
             test_result.write('#####\n\n')
@@ -293,12 +411,12 @@ if __name__ == '__main__':
         os.mkdir('./results/')
 
     data_list = [
-        'amazon_health',
+#        'amazon_health',
         'imdb',
-        'yelp'
+#        'yelp'
     ]
     parameters = {
-        'epochs': 30,
+        'epochs': 25,
         'num_class': 3,
         'optimizer': 'rmsprop',
         'hidden_num': 200,
@@ -309,6 +427,9 @@ if __name__ == '__main__':
         'emb_dir': '../resources/embedding/',
         'weight_dir': './vects/',
         'balance_data': False,
+        'lr_rate': 0.0001,
+        'use_uemb': True,
+        'use_pemb': True,
     }
 
     # load data stats to determine the max length
@@ -322,5 +443,6 @@ if __name__ == '__main__':
             parameters['max_len'] = int(stats[dname].get('75_percent_word_per_doc', 200))
         else:
             parameters['max_len'] = 200
+        parameters['up_dir'] = '../resources/skipgrams/' + dname + '/word_user_product/'
 
         run_bilstm(dname, parameters)

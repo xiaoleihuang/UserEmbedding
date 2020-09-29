@@ -1,10 +1,11 @@
 import os
 import json
 import pickle
+import sys
 
 from keras.layers import GRU, Bidirectional
 from keras.layers import Input, Embedding, Dense
-from keras.layers import Dropout, Concatenate, Add
+from keras.layers import Dropout, Concatenate, Add, RepeatVector
 from keras.models import Model
 from keras.preprocessing.sequence import pad_sequences
 import keras
@@ -13,9 +14,9 @@ from sklearn.metrics import f1_score, classification_report
 from sklearn.utils import class_weight
 import numpy as np
 import gensim
-
-#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # for CPU-use only
-#os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# from imblearn.over_sampling import RandomOverSampler
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # for CPU-use only
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
 def data_iter(**kwargs):
@@ -213,14 +214,6 @@ def run_bilstm(data_name, params):
         trainable=True,
         name='embedding')(text_input)
 
-    bilstm = Bidirectional(GRU(
-        weights.shape[1],
-        kernel_initializer="glorot_uniform",
-        # kernel_regularizer=keras.regularizers.l1_l2(0, 0.0001),
-        dropout=params['dp_rate'],
-        # recurrent_activation='tanh',
-    ))(embed)
-
     # concatenate user, product and the text
     # user and product embeddings
     if user_emb is not None:
@@ -229,21 +222,31 @@ def run_bilstm(data_name, params):
             user_emb.shape[0], user_emb.shape[1], weights=[user_emb],
             input_length=1, trainable=True, name='user_emb'
         )(user_input)
-        user_emb_layer = keras.layers.Lambda(lambda x: x[:, 0, :])(user_emb_layer)
-        bilstm = Concatenate(axis=-1, name='merge_u')([bilstm, user_emb_layer])
+        user_emb_layer = RepeatVector(parameters['max_len'])(
+            keras.layers.Lambda(lambda element: element[:, 0, :])(user_emb_layer))
+        embed = Concatenate()([embed, user_emb_layer])
     else:
         user_input = None
 
     if product_emb is not None:
-        product_input = Input(shape=(1, ), dtype='int32', name='product_input')
+        product_input = Input(shape=(1,), dtype='int32', name='product_input')
         product_emb_layer = Embedding(
             product_emb.shape[0], product_emb.shape[1], weights=[product_emb],
             input_length=1, trainable=True, name='product_emb'
         )(product_input)
-        product_emb_layer = keras.layers.Lambda(lambda x: x[:, 0, :])(product_emb_layer)
-        bilstm = Concatenate(axis=-1, name='merge_p')([bilstm, product_emb_layer])
+        product_emb_layer = RepeatVector(parameters['max_len'])(
+            keras.layers.Lambda(lambda element: element[:, 0, :])(product_emb_layer))
+        embed = Concatenate()([embed, product_emb_layer])
     else:
         product_input = None
+
+    bilstm = Bidirectional(GRU(
+        weights.shape[1],
+        kernel_initializer="glorot_uniform",
+        # kernel_regularizer=keras.regularizers.l1_l2(0, 0.0001),
+        dropout=params['dp_rate'],
+        # recurrent_activation='tanh',
+    ))(embed)
 
     # dense
     dense_l = Dense(params['hidden_num'], activation='relu', name='dense')(bilstm)
@@ -251,14 +254,15 @@ def run_bilstm(data_name, params):
 
     # output
     pred_l = Dense(params['num_class'], activation='softmax', name='prediction')(dp_l)
-    if user_input is None:
-        model = Model(inputs=text_input, outputs=pred_l)
+
     if user_input is None and product_input is not None:
         model = Model(inputs=[text_input, product_input], outputs=pred_l)
-    if user_input is not None and product_input is None:
+    elif user_input is not None and product_input is None:
         model = Model(inputs=[text_input, user_input], outputs=pred_l)
-    if user_input is not None and product_input is not None:
+    elif user_input is not None and product_input is not None:
         model = Model(inputs=[text_input, user_input, product_input], outputs=pred_l)
+    else:
+        model = Model(inputs=text_input, outputs=pred_l)
 
     # compile model
     if params['optimizer'] == 'rmsprop':
@@ -293,6 +297,12 @@ def run_bilstm(data_name, params):
         train=False
     )
     test_path = params['data_dir'] + data_name + '/test.tsv'
+    test_data = load_data(
+        test_path, params['max_len'],
+        params['encode_dir'] + data_name + '/{}.tkn'.format(data_name),
+        train=False
+    )
+    test_docs, test_labels, test_users, test_products = test_data
 
     for e in range(params['epochs']):
         accuracy = 0.0
@@ -378,50 +388,47 @@ def run_bilstm(data_name, params):
         print('Validating f1-weighted score: ' + str(f1_valid))
 
         # if the validation f1 score is good, then test
-        if f1_valid > best_valid_f1:
-            best_valid_f1 = f1_valid
-            test_data = load_data(
-                test_path, params['max_len'],
-                params['encode_dir'] + data_name + '/{}.tkn'.format(data_name),
-                train=False
-            )
-            test_docs, test_labels, test_users, test_products = test_data
-            test_iter = data_iter(
-                docs=test_docs, labels=test_labels, batch_size=params['batch_size'],
-                users=test_users, products=test_products
-            )
+        # if f1_valid > best_valid_f1:
+        best_valid_f1 = f1_valid
+        test_iter = data_iter(
+            docs=test_docs, labels=test_labels, batch_size=params['batch_size'],
+            users=test_users, products=test_products
+        )
 
-            y_preds = []
-            y_tests = []
-            for test_batch in test_iter:
-                batch_data, batch_label, batch_weight, batch_user, batch_product = test_batch
-                x_test = dict()
-                x_test['text_input'] = batch_data
-                if user_emb is not None:
-                    x_test['user_input'] = batch_user
-                if product_emb is not None:
-                    x_test['product_input'] = batch_product
+        y_preds = []
+        y_tests = []
+        for test_batch in test_iter:
+            batch_data, batch_label, batch_weight, batch_user, batch_product = test_batch
+            x_test = dict()
+            x_test['text_input'] = batch_data
+            if user_emb is not None:
+                x_test['user_input'] = batch_user
+            if product_emb is not None:
+                x_test['product_input'] = batch_product
 
-                tmp_preds = model.predict(x_test if len(x_test) > 1 else batch_data)
-                for item_tmp in tmp_preds:
-                    y_preds.append(item_tmp)
-                for item_tmp in batch_label:
-                    y_tests.append(int(item_tmp))
+            tmp_preds = model.predict(x_test if len(x_test) > 1 else batch_data)
+            for item_tmp in tmp_preds:
+                y_preds.append(item_tmp)
+            for item_tmp in batch_label:
+                y_tests.append(int(item_tmp))
 
-            if len(y_preds[0]) > 2:
-                y_preds = np.argmax(y_preds, axis=1)
-            else:
-                y_preds = [np.round(item[0]) for item in y_preds]
+        if len(y_preds[0]) > 2:
+            y_preds = np.argmax(y_preds, axis=1)
+        else:
+            y_preds = [np.round(item[0]) for item in y_preds]
 
-            test_result = open('./results/bilstm_personalize{}_results.txt'.format(output_suffix), 'a')
-            test_result.write(data_name + '\n')
-            test_result.write(json.dumps(params) + '\n')
-            test_result.write('Epoch ' + str(e) + '..................................................\n')
-            test_result.write(str(f1_score(y_true=y_tests, y_pred=y_preds, average='weighted')) + '\n')
-            test_result.write('#####\n\n')
-            test_result.write(classification_report(y_true=y_tests, y_pred=y_preds, digits=3))
-            test_result.write('...............................................................\n\n')
-            test_result.flush()
+        test_result = open('./results/{0}_{1}_results.txt'.format(
+            sys.argv[0].split('.')[0],
+            output_suffix), 'a'
+        )
+        test_result.write(data_name + '\n')
+        test_result.write(json.dumps(params) + '\n')
+        test_result.write('Epoch ' + str(e) + '..................................................\n')
+        test_result.write(str(f1_score(y_true=y_tests, y_pred=y_preds, average='weighted')) + '\n')
+        test_result.write('#####\n\n')
+        test_result.write(classification_report(y_true=y_tests, y_pred=y_preds, digits=3))
+        test_result.write('...............................................................\n\n')
+        test_result.flush()
 
 
 if __name__ == '__main__':
@@ -442,8 +449,8 @@ if __name__ == '__main__':
         'num_class': 3,
         'optimizer': 'rmsprop',
         'hidden_num': 200,
-        'dp_rate': 0.3,
-        'batch_size': 32,
+        'dp_rate': 0.2,
+        'batch_size': 64,
         'encode_dir': '../data/encode/',
         'data_dir': '../data/raw/',
         'emb_dir': '../resources/embedding/',

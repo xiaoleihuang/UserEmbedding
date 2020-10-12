@@ -229,7 +229,7 @@ def context_analysis(dname, inpath, data_dir, odir):
     if os.path.exists(vect_local_path):
         vect_sample = pickle.load(open(vect_local_path, 'rb'))
     else:
-        vect_sample = TfidfVectorizer(ngram_range=(1, 3), max_features=5000, min_df=2)
+        vect_sample = TfidfVectorizer(ngram_range=(1, 3), max_features=10000, min_df=2)
         vect_sample.fit(x_train)
         pickle.dump(vect_sample, open(vect_local_path, 'wb'))
 
@@ -240,7 +240,7 @@ def context_analysis(dname, inpath, data_dir, odir):
     else:
         x_global = []
         vect_global = TfidfVectorizer(
-            ngram_range=(1, 3), max_features=5000, min_df=2,
+            ngram_range=(1, 3), max_features=10000, min_df=2,
             stop_words=list(vect_sample.vocabulary_.keys()),
         )
         with open(os.path.join(data_dir, dname) +'/{}.tsv'.format(dname)) as dfile:
@@ -264,7 +264,7 @@ def context_analysis(dname, inpath, data_dir, odir):
     if os.path.exists(clf_local_path):
         clf_local = pickle.load(open(clf_local_path, 'rb'))
     else:
-        clf_local = LogisticRegression(class_weight='balanced', multi_class='auto')
+        clf_local = LogisticRegression(class_weight='balanced', multi_class='auto', max_iter=2000)
         clf_local.fit(vect_sample.transform(x_train), y_train)
         pickle.dump(clf_local, open(clf_local_path, 'wb'))
 
@@ -272,7 +272,7 @@ def context_analysis(dname, inpath, data_dir, odir):
     if os.path.exists(clf_global_path):
         clf_global = pickle.load(open(clf_global_path, 'rb'))
     else:
-        clf_global = LogisticRegression(class_weight='balanced', multi_class='auto')
+        clf_global = LogisticRegression(class_weight='balanced', multi_class='auto', max_iter=2000)
         clf_global.fit(
             hstack([vect_global.transform(x_train), vect_sample.transform(x_train)]), 
             y_train

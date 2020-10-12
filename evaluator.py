@@ -206,6 +206,14 @@ def load_categories(dpath):
                     user_dict[uid]['bids'][entity['bid']] = 0
                 user_dict[uid]['bids'][entity['bid']] += 1
 
+
+    for uid in user_dict:
+        mx_val = max(user_dict[uid]['genres'].values())
+        if mx_val > .8 * sum(user_dict[uid]['genres'].values()):
+            for genre in list(user_dict[uid]['genres'].keys()):
+                if user_dict[uid]['genres'][genre] != mx_val:
+                    del user_dict[uid]['genres'][genre]
+
     return prod_dict, user_dict
 
 

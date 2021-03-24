@@ -33,7 +33,19 @@ The figure shows document classification performance when training and testing o
 
 ## How to run
 
-Some scripts are for submitting jobs to the CLSP sever cluster.
+Some scripts are for submitting jobs to the CLSP sever cluster, which usually have the keyword `grid` in their file names.
+
+1. Just make sure that you have installed `conda` and `Python 3.6`;
+2. Install Tensorflow, Keras and Pytorch accordingly;
+3. Any data analysis scripts are in the directory of `analysis/`;
+    * `uemb_analysis.py` will reduce dimensions of user embeddings and generate visualizations of users in each dataset;
+    * `user_analysis.py` will calculate world and user variations and generate analysis visualizations with heatmaps.
+4. Baselines are in the directory of `baselines`, including doc2user, lda2user, word2user and bert2user;
+5. Main entrance will be `word_user_product.py`, which jointly train language, user and product embeddings. You can run the script by `python word_user_product.py your_task your_data_name and mode`. We use `global` as the default sampling strategy. To run all methods in a sequence, you can run `python submit_jobs.py`. The script will train our proposed user embeddings for all datasets in a HPC cluster.
+6. Pretrained word/lda/doc embeddings: this will pre-train embeddings for baselines. You can run `python embeddings.py data_name model_name`.
+7. To evaluate models, we have two different evaluations:
+    * Intrinsic evaluation (clustering): please run the `python run_evaluator_desktop.py` and change the model and data names accordingly before running the script. If you test our model on a HPC cluster, you can run `run_evaluator_grid.py`.
+    * Extrinsic evaluation (classification): please go to the directory of `[personalize](https://github.com/xiaoleihuang/UserEmbedding/tree/master/personalize)`, and you can run each classifier in the directory.
 
 
 ## Model Diagram
@@ -49,7 +61,7 @@ If you have any issues, please email xiaolei.huang@memphis.edu.
 
 ## Citation
 
-If you use our corpus in your publication, please kindly cite this [paper]():
+If you feel this repository useful, please kindly cite this [paper]():
 
 ```
 @inproceedings{huang2021user,

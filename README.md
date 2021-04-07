@@ -55,6 +55,9 @@ Some scripts are for submitting jobs to the CLSP sever cluster, which usually ha
 The figure provides illustrations of User Embedding via multitask learning framework on the left and personalized document classifiers using trained embedding models on the right. The arrows and their colors refer to the input directions and input sources respectively. We use the logos of people, shopping cart and ABC to represent users, reviewed items and word inputs. The `\bigoplus` is the concatenation operation.
 
 
+## Conference Poster
+![Poster](https://github.com/xiaoleihuang/UserEmbedding/blob/master/images/poster.png)
+
 ## Contact
 If you have any issues, please email xiaolei.huang@memphis.edu.
 
